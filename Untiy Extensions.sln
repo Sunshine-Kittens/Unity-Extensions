@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityExtension", "UnityExtension\UnityExtension.csproj", "{00262699-FA21-4615-BE72-1E6385568644}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityExtensionEditor", "UnityExtensionEditor\UnityExtensionEditor.csproj", "{457781B4-3411-43A0-A3B2-12E0A34E0E37}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{00262699-FA21-4615-BE72-1E6385568644}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00262699-FA21-4615-BE72-1E6385568644}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00262699-FA21-4615-BE72-1E6385568644}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00262699-FA21-4615-BE72-1E6385568644}.Release|Any CPU.Build.0 = Release|Any CPU
+		{457781B4-3411-43A0-A3B2-12E0A34E0E37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{457781B4-3411-43A0-A3B2-12E0A34E0E37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{457781B4-3411-43A0-A3B2-12E0A34E0E37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{457781B4-3411-43A0-A3B2-12E0A34E0E37}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {66098460-17E1-4582-A5A4-7752BA50A24F}
+	EndGlobalSection
+EndGlobal
