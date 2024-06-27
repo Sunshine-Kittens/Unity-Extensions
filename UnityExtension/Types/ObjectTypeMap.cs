@@ -5,8 +5,8 @@ namespace UnityEngine.Extension
 {
     public class ObjectTypeMap<T>
     {
-        public T[] array { get; private set; } = null;
-        public Dictionary<Type, T> dictionary { get; private set; } = null;
+        public T[] Array { get; private set; } = null;
+        public Dictionary<Type, T> Dictionary { get; private set; } = null;
 
         private ObjectTypeMap() { }
 
@@ -17,16 +17,16 @@ namespace UnityEngine.Extension
                 throw new ArgumentNullException(nameof(collection));
             }
 
-            array = new T[collection.Count];
-            collection.CopyTo(array, 0);
-            dictionary = new Dictionary<Type, T>(array.Length);
+            Array = new T[collection.Count];
+            collection.CopyTo(Array, 0);
+            Dictionary = new Dictionary<Type, T>(Array.Length);
 
-            for (int i = 0; i < array.Length; i++)
+            for (int i = 0; i < Array.Length; i++)
             {
-                Type type = array[i].GetType();
-                if (!dictionary.ContainsKey(type))
+                Type type = Array[i].GetType();
+                if (!Dictionary.ContainsKey(type))
                 {
-                    dictionary.Add(type, array[i]);
+                    Dictionary.Add(type, Array[i]);
                 }
                 else
                 {

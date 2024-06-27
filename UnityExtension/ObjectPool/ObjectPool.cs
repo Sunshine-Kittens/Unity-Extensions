@@ -6,7 +6,7 @@ namespace UnityEngine.Extension
     [Serializable]
     public class ObjectPool<T> where T : Component
     {
-        public T template { get { return _template; } }
+        public T Template { get { return _template; } }
         [SerializeField] private T _template = null;
 
         private HashSet<T> _activeObjects = new HashSet<T>();

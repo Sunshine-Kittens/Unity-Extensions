@@ -14,7 +14,7 @@ namespace UnityEngine.Extension
         private static HashSet<IFixedUpdatable> _fixedUpdatablesHashSet = new HashSet<IFixedUpdatable>();
         private static List<IFixedUpdatable> _fixedUpdatablesList = new List<IFixedUpdatable>();
 
-        protected override bool persists { get { return true; } }
+        protected override bool Persists { get { return true; } }
 
         public static void AddUpdatable(IUpdatable updatable)
         {

@@ -13,9 +13,9 @@ namespace UnityEngine.Extension
 
         private object _object { get { return _systemObject != null ? _systemObject : _unityObject; } }
 
-        public T value { get { return _object as T; } }
+        public T Value { get { return _object as T; } }
 
-        public bool hasValue { get { return value != null; } }
+        public bool HasValue { get { return Value != null; } }
 
         private InterfaceReference() { }
 
@@ -68,7 +68,7 @@ namespace UnityEngine.Extension
 
         public static implicit operator T(InterfaceReference<T> interfaceReference)
         {
-            return interfaceReference.value;
+            return interfaceReference.Value;
         }
 
         public static bool operator ==(InterfaceReference<T> lhs, InterfaceReference<T> rhs)
@@ -131,7 +131,7 @@ namespace UnityEngine.Extension
 
         public T GetValueOrDefault(T defaultValue)
         {
-            T ret = value;
+            T ret = Value;
             return ret != null ? ret : defaultValue; 
         }
     }

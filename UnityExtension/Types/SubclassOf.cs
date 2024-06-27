@@ -5,7 +5,7 @@ namespace UnityEngine.Extension
     [Serializable]
     public class SubclassOf<T> : ISerializationCallbackReceiver, IEquatable<SubclassOf<T>>, IEquatable<Type>  where T : class
     {
-        public Type classType
+        public Type ClassType
         {
             get
             {
@@ -18,7 +18,7 @@ namespace UnityEngine.Extension
         }
         private Type _classType;
 
-        public Type subclassType
+        public Type SubclassType
         {
             get
             {
@@ -48,9 +48,9 @@ namespace UnityEngine.Extension
             {
                 if(value != null)
                 {
-                    if (!value.IsSubclassOf(classType))
+                    if (!value.IsSubclassOf(ClassType))
                     {
-                        throw new ArgumentException(string.Format("value is not subclass of {0}", classType));
+                        throw new ArgumentException(string.Format("value is not subclass of {0}", ClassType));
                     }
                     _subclassTypeName = value.AssemblyQualifiedName;
                 }
@@ -64,11 +64,11 @@ namespace UnityEngine.Extension
         private Type _subclassType;
 
         // AssemblyQualifiedName
-        public string classTypeName { get { return _classTypeName; } }
+        public string ClassTypeName { get { return _classTypeName; } }
         [SerializeField, HideInInspector] private string _classTypeName = null;
 
         // AssemblyQualifiedName
-        public string subclassTypeName { get { return _subclassTypeName; } }
+        public string SubclassTypeName { get { return _subclassTypeName; } }
         [SerializeField, HideInInspector] private string _subclassTypeName = null;
 
         public SubclassOf()
@@ -79,7 +79,7 @@ namespace UnityEngine.Extension
         public SubclassOf(Type subclassType)
         {
             _classTypeName = typeof(T).AssemblyQualifiedName;
-            this.subclassType = subclassType;
+            this.SubclassType = subclassType;
         }
 
         public static implicit operator SubclassOf<T>(Type subclassType)
@@ -89,7 +89,7 @@ namespace UnityEngine.Extension
 
         public static implicit operator Type(SubclassOf<T> subclassOf)
         {
-            return subclassOf.subclassType;
+            return subclassOf.SubclassType;
         }
 
         public static bool operator ==(SubclassOf<T> lhs, SubclassOf<T> rhs)
@@ -124,36 +124,36 @@ namespace UnityEngine.Extension
 
         public T CreateInstance(params object[] args)
         {
-            if(subclassType == null)
+            if(SubclassType == null)
             {
                 throw new InvalidOperationException("No assigned subclass type");
             }
-            return (T)Activator.CreateInstance(subclassType, args);
+            return (T)Activator.CreateInstance(SubclassType, args);
         }
 
         private void Validate()
         {
             _classTypeName = typeof(T).AssemblyQualifiedName;
-            Type tempSubclassType = subclassType;
+            Type tempSubclassType = SubclassType;
             if(tempSubclassType != null)
             {
-                if (!tempSubclassType.IsSubclassOf(classType))
+                if (!tempSubclassType.IsSubclassOf(ClassType))
                 {
-                    subclassType = null;
+                    SubclassType = null;
                     return;
                 }
             }
-            subclassType = tempSubclassType;
+            SubclassType = tempSubclassType;
         }
 
         public bool Equals(Type other)
         {
-            return subclassType.Equals(other);
+            return SubclassType.Equals(other);
         }
 
         public bool Equals(SubclassOf<T> other)
         {
-            return subclassType.Equals(other.subclassType);
+            return SubclassType.Equals(other.SubclassType);
         }
 
         public override bool Equals(object obj)

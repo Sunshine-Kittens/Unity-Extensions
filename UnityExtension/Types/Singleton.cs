@@ -4,10 +4,10 @@ namespace UnityEngine.Extension
 {
     public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
     {
-        public static T instance { get { return _instance; } }
+        public static T Instance { get { return _instance; } }
         private static T _instance = null;
 
-        protected abstract bool persists { get; }
+        protected abstract bool Persists { get; }
 
         public static bool IsInstanceValid()
         {
@@ -21,7 +21,7 @@ namespace UnityEngine.Extension
                 throw new Exception("More than once instance of" + nameof(T) + " exists within the current scene.");
             }
 
-            if (persists)
+            if (Persists)
             {
                 DontDestroyOnLoad(gameObject);
             }

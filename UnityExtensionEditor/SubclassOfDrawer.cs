@@ -13,15 +13,15 @@ namespace UnityEditor.Extension
     {
         private class SubclassCache
         {
-            public Type baseType = null;
-            public Type[] subclassTypes = null;
-            public bool dirty = false;
+            public Type BaseType = null;
+            public Type[] SubclassTypes = null;
+            public bool Dirty = false;
 
             private SubclassCache() { }
 
             public SubclassCache(Type baseType)
             {
-                this.baseType = baseType;
+                this.BaseType = baseType;
             }
         }
 
@@ -103,9 +103,9 @@ namespace UnityEditor.Extension
             SubclassCache cache;
             if(_cachedSubclassTypes.TryGetValue(baseType, out cache))
             {
-                if(!cache.dirty)
+                if(!cache.Dirty)
                 {
-                    return cache.subclassTypes;
+                    return cache.SubclassTypes;
                 }
             }
             else
@@ -115,8 +115,8 @@ namespace UnityEditor.Extension
             }
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic).ToArray();
             IEnumerable<Type> exportedTypes = assemblies.SelectMany(domainAssembly => domainAssembly.GetExportedTypes());
-            cache.subclassTypes = exportedTypes.Where(type => type.IsSubclassOf(baseType) && type != baseType && !type.IsAbstract).ToArray();
-            return cache.subclassTypes;
+            cache.SubclassTypes = exportedTypes.Where(type => type.IsSubclassOf(baseType) && type != baseType && !type.IsAbstract).ToArray();
+            return cache.SubclassTypes;
         }
 
         [UnityEditor.Callbacks.DidReloadScripts]
@@ -124,7 +124,7 @@ namespace UnityEditor.Extension
         {
             foreach(KeyValuePair<Type, SubclassCache> pair in _cachedSubclassTypes)
             {
-                pair.Value.dirty = true;
+                pair.Value.Dirty = true;
             }
         }
     }

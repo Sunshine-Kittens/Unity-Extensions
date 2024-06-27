@@ -17,8 +17,8 @@ namespace UnityEngine.Extension
 
         private struct PrioritizedElement : IEquatable<T>
         {
-            public T element { get; private set; }
-            public int priority { get; private set; }
+            public T Element { get; private set; }
+            public int Priority { get; private set; }
 
             public static implicit operator PrioritizedElement(T element)
             {
@@ -27,17 +27,17 @@ namespace UnityEngine.Extension
 
             public override int GetHashCode()
             {
-                return element.GetHashCode();
+                return Element.GetHashCode();
             }
 
             public override bool Equals(object obj)
             {
-                return element.Equals(obj);
+                return Element.Equals(obj);
             }
 
             public bool Equals(T other)
             {
-                return element.Equals(other);
+                return Element.Equals(other);
             }
 
             public PrioritizedElement(T element, int priority)
@@ -47,8 +47,8 @@ namespace UnityEngine.Extension
                     throw new ArgumentNullException(nameof(element));
                 }
 
-                this.element = element;
-                this.priority = priority;
+                this.Element = element;
+                this.Priority = priority;
             }
         }
 
@@ -86,7 +86,7 @@ namespace UnityEngine.Extension
             _elements.Remove(prioritizedElement);
 
             List<T> group;
-            _groups.TryGetValue(prioritizedElement.priority, out group);
+            _groups.TryGetValue(prioritizedElement.Priority, out group);
             group.Remove(element);
             return true;
         }
@@ -103,11 +103,11 @@ namespace UnityEngine.Extension
 
         public struct Enumerator : IEnumerator<T>
         {
-            private PriorityCollection<T> collection;
-            private T current;
+            private PriorityCollection<T> _collection;
+            private T _current;
 
-            int groupIndex;
-            int elementIndex;
+            private int _groupIndex;
+            private int _elementIndex;
 
             object IEnumerator.Current
             {
@@ -121,36 +121,36 @@ namespace UnityEngine.Extension
             {
                 get
                 {
-                    return current;
+                    return _current;
                 }
             }
 
             internal Enumerator(PriorityCollection<T> collection)
             {
-                this.collection = collection;
-                groupIndex = 0;
-                elementIndex = 0;
-                current = default;
+                this._collection = collection;
+                _groupIndex = 0;
+                _elementIndex = 0;
+                _current = default;
             }
 
             public void Dispose() { }
 
             public bool MoveNext()
             {
-                if (groupIndex < collection._groups.Count)
+                if (_groupIndex < _collection._groups.Count)
                 {
-                    if (elementIndex < collection._groups.Values[groupIndex].Count)
+                    if (_elementIndex < _collection._groups.Values[_groupIndex].Count)
                     {
-                        current = collection._groups.Values[groupIndex][elementIndex];
+                        _current = _collection._groups.Values[_groupIndex][_elementIndex];
 
-                        if (elementIndex < collection._groups.Values[groupIndex].Count - 1)
+                        if (_elementIndex < _collection._groups.Values[_groupIndex].Count - 1)
                         {
-                            elementIndex++;
+                            _elementIndex++;
                         }
                         else
                         {
-                            elementIndex = 0;
-                            groupIndex++;
+                            _elementIndex = 0;
+                            _groupIndex++;
                         }
                         return true;
                     }
@@ -160,9 +160,9 @@ namespace UnityEngine.Extension
 
             void IEnumerator.Reset()
             {
-                groupIndex = 0;
-                elementIndex = 0;
-                current = default(T);
+                _groupIndex = 0;
+                _elementIndex = 0;
+                _current = default(T);
             }
         }
     }
