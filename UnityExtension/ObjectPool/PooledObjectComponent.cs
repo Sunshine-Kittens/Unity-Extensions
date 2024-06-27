@@ -1,4 +1,4 @@
-﻿namespace UnityEngine.Extension
+namespace UnityEngine.Extension
 {
     public class PooledObjectComponent<T> : MonoBehaviour, IPooledObjectHandle<T> where T : Component
     {

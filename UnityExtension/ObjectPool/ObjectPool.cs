@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace UnityEngine.Extension
@@ -6,7 +6,7 @@ namespace UnityEngine.Extension
     [Serializable]
     public class ObjectPool<T> where T : Component
     {
-        public T Template { get { return _template; } }
+        public T template { get { return _template; } }
         [SerializeField] private T _template = null;
 
         private HashSet<T> _activeObjects = new HashSet<T>();
@@ -18,6 +18,7 @@ namespace UnityEngine.Extension
             if (_inactivePool.Count > 0)
             {
                 instance = _inactivePool[_inactivePool.Count - 1];
+                instance.gameObject.SetActive(true);
                 _inactivePool.RemoveAt(_inactivePool.Count - 1);
                 _activeObjects.Add(instance);
             }
@@ -55,6 +56,16 @@ namespace UnityEngine.Extension
             UnityEngine.Object.Destroy(pooledObject);
         }
 
+        public void ReturnAllToPool()
+        {
+            foreach (T pooledObject in _activeObjects)
+            {
+                pooledObject.gameObject.SetActive(false);
+                _inactivePool.Add(pooledObject);
+            }
+            _activeObjects.Clear();
+        }
+
         public void Clear()
         {
             foreach (T pooledObject in _activeObjects)
@@ -69,5 +80,4 @@ namespace UnityEngine.Extension
             _inactivePool.Clear();
         }
     }
-
 }

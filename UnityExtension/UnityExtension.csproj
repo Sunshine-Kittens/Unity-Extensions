@@ -5,6 +5,9 @@
     <Nullable>disable</Nullable>
     <RootNamespace>UnityEngine.Extension</RootNamespace>
     <AssemblyName>UnityEngine.Extension</AssemblyName>
+    <Authors>Luke Andrews</Authors>
+    <PackageOutputPath>$(OutputPath)</PackageOutputPath>
+    <BaseOutputPath>..\bin\</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

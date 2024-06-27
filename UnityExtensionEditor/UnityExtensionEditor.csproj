@@ -5,6 +5,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>UnityEditor.Extension</AssemblyName>
     <RootNamespace>UnityEditor.Extension</RootNamespace>
+    <BaseOutputPath>..\bin\</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
