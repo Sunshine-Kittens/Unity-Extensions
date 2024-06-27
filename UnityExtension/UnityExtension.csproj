@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>disable</Nullable>
+    <RootNamespace>UnityEngine.Extension</RootNamespace>
+    <AssemblyName>UnityEngine.Extension</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

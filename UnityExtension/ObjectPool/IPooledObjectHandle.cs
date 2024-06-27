@@ -1,4 +1,4 @@
-﻿namespace UnityEngine.UnityExtension
+﻿namespace UnityEngine.Extension
 {
     public interface IPooledObjectHandle<T> where T : Component
     {

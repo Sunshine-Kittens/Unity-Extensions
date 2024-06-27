@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace UnityEngine.UnityExtension
+namespace UnityEngine.Extension
 {
     [Serializable]
     public class ObjectPool<T> where T : Component
     {
         public T template { get { return _template; } }
-        [SerializeField] private T _template;
+        [SerializeField] private T _template = null;
 
         private HashSet<T> _activeObjects = new HashSet<T>();
         private List<T> _inactivePool = new List<T>();
