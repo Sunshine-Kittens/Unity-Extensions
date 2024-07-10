@@ -1,40 +1,45 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace UnityEngine.Extension
 {
-    [Serializable]
-    public class ObjectPool<T> where T : Component
+    public abstract class ObjectPool
     {
-        public T template { get { return _template; } }
-        [SerializeField] private T _template = null;
+        private HashSet<Component> _activeObjects = new HashSet<Component>();
+        private List<Component> _inactivePool = new List<Component>();
 
-        private HashSet<T> _activeObjects = new HashSet<T>();
-        private List<T> _inactivePool = new List<T>();
+        private ObjectPool() { }
 
-        public T Get()
+        public ObjectPool(int capacity) 
+        {
+            _activeObjects = new HashSet<Component>(capacity);
+            _inactivePool = new List<Component>(capacity);
+        }
+
+        protected T Get<T>(T template) where T : Component
         {
             T instance;
             if (_inactivePool.Count > 0)
             {
-                instance = _inactivePool[_inactivePool.Count - 1];
+                instance = _inactivePool[_inactivePool.Count - 1] as T;
                 instance.gameObject.SetActive(true);
                 _inactivePool.RemoveAt(_inactivePool.Count - 1);
-                _activeObjects.Add(instance);
             }
             else
             {
-                instance = UnityEngine.Object.Instantiate(_template);
-                IPooledObjectHandle<T> handle = instance.GetComponent<IPooledObjectHandle<T>>();
+                instance = UnityEngine.Object.Instantiate(template);
+                IPooledObjectHandle handle = instance.GetComponent<IPooledObjectHandle>();
                 if (handle == null)
                 {
-                    instance.gameObject.AddComponent<PooledObjectComponent<T>>();
+                    handle = instance.gameObject.AddComponent<PooledObjectComponent>();
                 }
+                handle.Init(instance, this);
             }
+            _activeObjects.Add(instance);
             return instance;
         }
 
-        public void ReturnToPool(T pooledObject)
+        public void ReturnToPool(Component pooledObject)
         {
             if (!_activeObjects.Remove(pooledObject))
             {
@@ -44,7 +49,7 @@ namespace UnityEngine.Extension
             _inactivePool.Add(pooledObject);
         }
 
-        public void DestroyFromPool(T pooledObject)
+        public void DestroyFromPool(Component pooledObject)
         {
             if (!_activeObjects.Remove(pooledObject))
             {
@@ -58,7 +63,7 @@ namespace UnityEngine.Extension
 
         public void ReturnAllToPool()
         {
-            foreach (T pooledObject in _activeObjects)
+            foreach (Component pooledObject in _activeObjects)
             {
                 pooledObject.gameObject.SetActive(false);
                 _inactivePool.Add(pooledObject);
@@ -68,7 +73,7 @@ namespace UnityEngine.Extension
 
         public void Clear()
         {
-            foreach (T pooledObject in _activeObjects)
+            foreach (Component pooledObject in _activeObjects)
             {
                 UnityEngine.Object.Destroy(pooledObject);
             }

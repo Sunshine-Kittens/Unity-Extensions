@@ -1,11 +1,13 @@
+using System;
+
 namespace UnityEngine.Extension
 {
-    public class PooledObjectComponent<T> : MonoBehaviour, IPooledObjectHandle<T> where T : Component
+    public class PooledObjectComponent : MonoBehaviour, IPooledObjectHandle
     {
-        private T _owningObject = null;
-        private ObjectPool<T> _owningPool = null;
+        private Component _owningObject = null;
+        private ObjectPool _owningPool = null;
 
-        public void Init(T owningObject, ObjectPool<T> owningPool)
+        public void Init(Component owningObject, ObjectPool owningPool)
         {
             _owningObject = owningObject;
             _owningPool = owningPool;
@@ -13,11 +15,29 @@ namespace UnityEngine.Extension
 
         public void DeactivateToPool()
         {
+            if(_owningPool == null)
+            {
+                throw new InvalidOperationException("Owning pool is invalid.");
+            }
+
+            if(_owningObject == null)
+            {
+                throw new InvalidOperationException("Owning object is invalid.");
+            }
             _owningPool.ReturnToPool(_owningObject);
         }
 
         public void DestroyFromPool()
         {
+            if (_owningPool == null)
+            {
+                throw new InvalidOperationException("Owning pool is invalid.");
+            }
+
+            if (_owningObject == null)
+            {
+                throw new InvalidOperationException("Owning object is invalid.");
+            }
             _owningPool.DestroyFromPool(_owningObject);
         }
 

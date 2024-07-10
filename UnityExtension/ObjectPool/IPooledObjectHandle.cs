@@ -1,8 +1,8 @@
 namespace UnityEngine.Extension
 {
-    public interface IPooledObjectHandle<T> where T : Component
+    public interface IPooledObjectHandle
     {
-        public void Init(T owningObject, ObjectPool<T> owningPool);
+        public void Init(Component owningObject, ObjectPool owningPool);
 
         public void DeactivateToPool();
 

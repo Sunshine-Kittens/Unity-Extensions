@@ -1,109 +1,104 @@
 using System;
 using System.Collections.Generic;
 
+using UnityEngine.PlayerLoop;
+
 namespace UnityEngine.Extension
 {
-    public class UpdateManager : Singleton<UpdateManager>
+    public static class UpdateManager
     {
-        private static HashSet<IUpdatable> _updatablesHashSet = new HashSet<IUpdatable>();
-        private static List<IUpdatable> _updatablesList = new List<IUpdatable>();
+        private class ManagedUpdatePlayerLoopSystem : IPlayerLoopSystem
+        {
+            public EntryPointLocation Location { get { return EntryPointLocation.InPlace; } }
+            public Type EntryPoint { get { return typeof(Update.ScriptRunBehaviourUpdate); } }
 
-        private static HashSet<ILateUpdatable> _lateUpdatablesHashSet = new HashSet<ILateUpdatable>();
-        private static List<ILateUpdatable> _lateUpdatablesList = new List<ILateUpdatable>();
+            public List<IUpdatable> List = new List<IUpdatable>();
 
-        private static HashSet<IFixedUpdatable> _fixedUpdatablesHashSet = new HashSet<IFixedUpdatable>();
-        private static List<IFixedUpdatable> _fixedUpdatablesList = new List<IFixedUpdatable>();
+            public ManagedUpdatePlayerLoopSystem() { }
 
-        protected override bool Persists { get { return true; } }
+            public void Update()
+            {
+                for (int i = 0; i < List.Count; i++)
+                {
+                    List[i].ManagedUpdate();
+                }
+            }
+        }
+
+        private class ManagedLateUpdatePlayerLoopSystem : IPlayerLoopSystem
+        {
+            public List<ILateUpdatable> List = new List<ILateUpdatable>();
+            public EntryPointLocation Location { get { return EntryPointLocation.InPlace; } }
+            public Type EntryPoint { get { return typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate); } }
+
+            public ManagedLateUpdatePlayerLoopSystem() { }
+
+            public void Update()
+            {
+                for (int i = 0; i < List.Count; i++)
+                {
+                    List[i].ManagedLateUpdate();
+                }
+            }
+        }
+
+        private class ManagedFixedUpdatePlayerLoopSystem : IPlayerLoopSystem
+        {
+            public List<IFixedUpdatable> List = new List<IFixedUpdatable>();
+            public EntryPointLocation Location { get { return EntryPointLocation.InPlace; } }
+            public Type EntryPoint { get { return typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate); } }
+
+            public ManagedFixedUpdatePlayerLoopSystem() { }
+
+            public void Update()
+            {
+                for (int i = 0; i < List.Count; i++)
+                {
+                    List[i].ManagedFixedUpdate();
+                }
+            }
+        }
+
+        public static IPlayerLoopSystem UpdatablesPlayerLoopSystem { get { return _updatablesPlayerLoopSystem; } }
+        private static ManagedUpdatePlayerLoopSystem _updatablesPlayerLoopSystem = new ManagedUpdatePlayerLoopSystem();
+        public static IPlayerLoopSystem LateUpdatablesPlayerLoopSystem { get { return _lateUpdatablesPlayerLoopSystem; } }
+        private static ManagedLateUpdatePlayerLoopSystem _lateUpdatablesPlayerLoopSystem = new ManagedLateUpdatePlayerLoopSystem();
+        public static IPlayerLoopSystem FixedUpdatablesPlayerLoopSystem { get { return _fixedUpdatablesPlayerLoopSystem; } }
+        private static ManagedFixedUpdatePlayerLoopSystem _fixedUpdatablesPlayerLoopSystem = new ManagedFixedUpdatePlayerLoopSystem();
+
+        static UpdateManager()
+        {
+
+        }
 
         public static void AddUpdatable(IUpdatable updatable)
         {
-            if (_updatablesHashSet.Contains(updatable))
-            {
-                throw new InvalidOperationException("IUpdatable has already been added to the manager.");
-            }
-
-            _updatablesHashSet.Add(updatable);
-            _updatablesList.Add(updatable);
+            _updatablesPlayerLoopSystem.List.Add(updatable);
         }
 
         public static void RemoveUpdatable(IUpdatable updatable)
         {
-            if (!_updatablesHashSet.Contains(updatable))
-            {
-                throw new InvalidOperationException("IUpdatable has not been added to the manager.");
-            }
-
-            _updatablesHashSet.Remove(updatable);
-            _updatablesList.Remove(updatable);
+            _updatablesPlayerLoopSystem.List.Remove(updatable);
         }
 
         public static void AddLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            if (_lateUpdatablesHashSet.Contains(lateUpdatable))
-            {
-                throw new InvalidOperationException("ILateUpdatable has already been added to the manager.");
-            }
-
-            _lateUpdatablesHashSet.Add(lateUpdatable);
-            _lateUpdatablesList.Add(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.List.Add(lateUpdatable);
         }
 
         public static void RemoveLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            if (!_lateUpdatablesHashSet.Contains(lateUpdatable))
-            {
-                throw new InvalidOperationException("ILateUpdatable has not been added to the manager.");
-            }
-
-            _lateUpdatablesHashSet.Remove(lateUpdatable);
-            _lateUpdatablesList.Remove(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.List.Remove(lateUpdatable);
         }
 
         public static void AddFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            if (_fixedUpdatablesHashSet.Contains(fixedUpdatable))
-            {
-                throw new InvalidOperationException("IFixedUpdatable has already been added to the manager.");
-            }
-
-            _fixedUpdatablesHashSet.Add(fixedUpdatable);
-            _fixedUpdatablesList.Add(fixedUpdatable);
+            _fixedUpdatablesPlayerLoopSystem.List.Add(fixedUpdatable);
         }
 
         public static void RemoveFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            if (!_fixedUpdatablesHashSet.Contains(fixedUpdatable))
-            {
-                throw new InvalidOperationException("IFixedUpdatable has not been added to the manager.");
-            }
-
-            _fixedUpdatablesHashSet.Remove(fixedUpdatable);
-            _fixedUpdatablesList.Remove(fixedUpdatable);
-        }
-
-        private void Update()
-        {
-            for (int i = 0; i < _updatablesList.Count; i++)
-            {
-                _updatablesList[i].ManagedUpdate();
-            }
-        }
-
-        private void LateUpdate()
-        {
-            for (int i = 0; i < _lateUpdatablesList.Count; i++)
-            {
-                _lateUpdatablesList[i].ManagedLateUpdate();
-            }
-        }
-
-        private void FixedUpdate()
-        {
-            for (int i = 0; i < _fixedUpdatablesList.Count; i++)
-            {
-                _fixedUpdatablesList[i].ManagedFixedUpdate();
-            }
+            _fixedUpdatablesPlayerLoopSystem.List.Remove(fixedUpdatable);
         }
     }
 }
