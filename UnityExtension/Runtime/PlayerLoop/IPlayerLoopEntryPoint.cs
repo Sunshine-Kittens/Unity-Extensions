@@ -6,7 +6,7 @@ namespace UnityEngine.Extension
     {
         Before,
         After,
-        InPlace
+        Replace
     }
 
     public interface IPlayerLoopEntryPoint

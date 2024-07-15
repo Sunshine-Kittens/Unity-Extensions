@@ -51,7 +51,7 @@ namespace UnityEngine.Extension
 
         public static void ReplaceSystem(Type systemType, IPlayerLoopUpdate playerLoopUpdate)
         {
-            InsertSystem(systemType, EntryPointLocation.InPlace, playerLoopUpdate);
+            InsertSystem(systemType, EntryPointLocation.Replace, playerLoopUpdate);
         }
 
         private static LowLevel.PlayerLoopSystem ConstructPlayerLoopSystem(IPlayerLoopUpdate playerLoopUpdate)
@@ -93,7 +93,7 @@ namespace UnityEngine.Extension
             {
                 if (subSystems[i].type == systemType)
                 {
-                    if (location == EntryPointLocation.InPlace)
+                    if (location == EntryPointLocation.Replace)
                     {
                         subSystems[i] = playerSystemLoop;
                     }
