@@ -9,7 +9,7 @@ namespace UnityEngine.Extension
     {
         private class ManagedUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public EntryPointLocation Location { get { return EntryPointLocation.Replace; } }
+            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
             public Type EntryPoint { get { return typeof(Update.ScriptRunBehaviourUpdate); } }
 
             public List<IUpdatable> List = new List<IUpdatable>();
@@ -28,7 +28,7 @@ namespace UnityEngine.Extension
         private class ManagedLateUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
             public List<ILateUpdatable> List = new List<ILateUpdatable>();
-            public EntryPointLocation Location { get { return EntryPointLocation.Replace; } }
+            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
             public Type EntryPoint { get { return typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate); } }
 
             public ManagedLateUpdatePlayerLoopSystem() { }
@@ -45,7 +45,7 @@ namespace UnityEngine.Extension
         private class ManagedFixedUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
             public List<IFixedUpdatable> List = new List<IFixedUpdatable>();
-            public EntryPointLocation Location { get { return EntryPointLocation.Replace; } }
+            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
             public Type EntryPoint { get { return typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate); } }
 
             public ManagedFixedUpdatePlayerLoopSystem() { }

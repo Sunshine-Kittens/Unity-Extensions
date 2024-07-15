@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.lukeandrews.unityextension": {
+    "com.lukeandrews.unity-extension": {
       "version": "file:com.lukeandrews.unity-extension",
       "depth": 0,
       "source": "embedded",
