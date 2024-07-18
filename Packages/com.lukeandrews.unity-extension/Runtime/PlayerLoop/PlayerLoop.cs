@@ -81,37 +81,36 @@ namespace UnityEngine.Extension
             LowLevel.PlayerLoop.SetPlayerLoop(currentPlayerLoop);
         }
 
-        private static bool InsertSystem(ref LowLevel.PlayerLoopSystem currentPlayerLoopSystem, Type systemType, EntryPointLocation location, LowLevel.PlayerLoopSystem playerSystemLoop)
+        private static bool InsertSystem(ref LowLevel.PlayerLoopSystem playerLoopSystem, Type systemType, EntryPointLocation location, LowLevel.PlayerLoopSystem playerSystemLoop)
         {
-            LowLevel.PlayerLoopSystem[] subSystems = currentPlayerLoopSystem.subSystemList;
-            if (subSystems == null)
+            if (playerLoopSystem.subSystemList == null)
             {
                 return false;
             }
 
-            for (int i = 0; i < subSystems.Length; i++)
+            for (int i = 0; i < playerLoopSystem.subSystemList.Length; i++)
             {
-                if (subSystems[i].type == systemType)
+                if (playerLoopSystem.subSystemList[i].type == systemType)
                 {
                     if (location == EntryPointLocation.Replace)
                     {
-                        subSystems[i] = playerSystemLoop;
+                        playerLoopSystem.subSystemList[i] = playerSystemLoop;
                     }
                     else
                     {
                         int index = location == EntryPointLocation.Before ? i : i + 1;
-                        Array.Resize(ref subSystems, subSystems.Length + 1);
-                        Array.Copy(subSystems, index, subSystems, index + 1, subSystems.Length - index - 1);
-                        subSystems[index] = playerSystemLoop;
+                        Array.Resize(ref playerLoopSystem.subSystemList, playerLoopSystem.subSystemList.Length + 1);
+                        Array.Copy(playerLoopSystem.subSystemList, index, playerLoopSystem.subSystemList, index + 1, playerLoopSystem.subSystemList.Length - index - 1);
+                        playerLoopSystem.subSystemList[index] = playerSystemLoop;
                     }
                     return true;
                 }
                 else
                 {
-                    LowLevel.PlayerLoopSystem subSystem = subSystems[i];
+                    LowLevel.PlayerLoopSystem subSystem = playerLoopSystem.subSystemList[i];
                     if (InsertSystem(ref subSystem, systemType, location, playerSystemLoop))
                     {
-                        subSystems[i] = subSystem;
+                        playerLoopSystem.subSystemList[i] = subSystem;
                         return true;
                     }
                 }
@@ -132,24 +131,23 @@ namespace UnityEngine.Extension
             return removed;
         }
 
-        private static bool TryRemoveSystem(ref LowLevel.PlayerLoopSystem currentSystem, Type systemType)
+        private static bool TryRemoveSystem(ref LowLevel.PlayerLoopSystem playerLoopSystem, Type systemType)
         {
-            LowLevel.PlayerLoopSystem[] subSystems = currentSystem.subSystemList;
-            if (subSystems == null)
+            if (playerLoopSystem.subSystemList == null)
             {
                 return false;
             }
 
-            for (int i = 0; i < subSystems.Length; i++)
+            for (int i = 0; i < playerLoopSystem.subSystemList.Length; i++)
             {
-                if (subSystems[i].type == systemType)
+                if (playerLoopSystem.subSystemList[i].type == systemType)
                 {
-                    Array.Copy(subSystems, i + 1, subSystems, i, subSystems.Length - i - 1);
-                    Array.Resize(ref subSystems, subSystems.Length - 1);
+                    Array.Copy(playerLoopSystem.subSystemList, i + 1, playerLoopSystem.subSystemList, i, playerLoopSystem.subSystemList.Length - i - 1);
+                    Array.Resize(ref playerLoopSystem.subSystemList, playerLoopSystem.subSystemList.Length - 1);
                     return true;
                 }
 
-                if (TryRemoveSystem(ref subSystems[i], systemType))
+                if (TryRemoveSystem(ref playerLoopSystem.subSystemList[i], systemType))
                 {
                     return true;
                 }
