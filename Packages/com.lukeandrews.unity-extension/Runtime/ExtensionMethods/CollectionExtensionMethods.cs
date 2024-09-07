@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace UnityEngine.Extension
 {
@@ -67,6 +68,16 @@ namespace UnityEngine.Extension
                 collection[n] = collection[k];
                 collection[k] = temp;
             }
+        }
+
+        public static T RandomElement<T>(this List<T> list)
+        {
+            return list[UnityEngine.Random.Range(0, list.Count)];
+        }
+
+        public static T RandomElement<T>(this T[] array)
+        {
+            return array[UnityEngine.Random.Range(0, array.Length)];
         }
     }
 }
