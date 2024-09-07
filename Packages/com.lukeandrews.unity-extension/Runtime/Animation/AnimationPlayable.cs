@@ -25,23 +25,5 @@ namespace UnityEngine.Extension
             TimeMode = timeMode;
             PlaybackSpeed = playbackSpeed;
         }
-
-        public void Invert()
-        {
-            StartTime = Animation.Length - StartTime;
-            PlaybackMode = PlaybackMode.InvertPlayMode();
-        }
-
-        public AnimationPlayable CreateInverse(float startTime)
-        {
-            return new AnimationPlayable(Animation, startTime, PlaybackMode.InvertPlayMode(), 
-                EasingMode.GetInverseEasingMode(), TimeMode, PlaybackSpeed);
-        }
-
-        public AnimationPlayable CreateInverse()
-        {
-            return new AnimationPlayable(Animation, Animation.Length - StartTime, PlaybackMode.InvertPlayMode(), 
-                EasingMode.GetInverseEasingMode(), TimeMode, PlaybackSpeed);
-        }
     }
 }
