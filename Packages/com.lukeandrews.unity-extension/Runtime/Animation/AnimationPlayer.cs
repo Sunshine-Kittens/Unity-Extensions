@@ -92,15 +92,15 @@ namespace UnityEngine.Extension
                 animationPlayable.PlaybackSpeed);
         }
 
-        public static AnimationPlayer PlayAnimation(IAnimation animation, float startTime = 0.0F, PlaybackMode playMode = PlaybackMode.Forward, 
+        public static AnimationPlayer PlayAnimation(IAnimation animation, float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, 
             EasingMode easingMode = EasingMode.Linear, TimeMode timeMode = TimeMode.Scaled, float playbackSpeed = 1.0F)
         {
             AnimationPlayer player = new AnimationPlayer(animation);
-            player.Play(startTime, playMode, easingMode, timeMode);
+            player.Play(startTime, playbackMode, easingMode, timeMode);
             return player;
         }
 
-        public void Play(float startTime = 0.0F, PlaybackMode playMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, 
+        public void Play(float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, 
             TimeMode timeMode = TimeMode.Scaled, float playbackSpeed = 1.0F)
         {   
             if(!IsPlaying)
@@ -112,7 +112,7 @@ namespace UnityEngine.Extension
 
             this.TimeMode = timeMode;
             this.EasingMode = easingMode;
-            this.PlaybackMode = playMode;
+            this.PlaybackMode = playbackMode;
             CurrentTime = Mathf.Clamp(startTime, 0.0F, Length);
 
             EvaluateAnimation();
