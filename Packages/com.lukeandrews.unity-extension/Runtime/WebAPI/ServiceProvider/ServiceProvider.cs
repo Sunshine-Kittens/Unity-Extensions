@@ -29,6 +29,9 @@ namespace UnityEngine.Extension.WebAPI
         private string _activeEnvironment;
         private Dictionary<string, ServiceProviderEnvironment> _environments;
 
+        public string ActiveEnvironment { get { return _activeEnvironment; } }
+        public ServiceProviderEnvironment Environment { get { return _environments[_activeEnvironment]; } }
+
         public bool SetEnvironment(string environment)
         {
             if (_environments.ContainsKey(environment))
