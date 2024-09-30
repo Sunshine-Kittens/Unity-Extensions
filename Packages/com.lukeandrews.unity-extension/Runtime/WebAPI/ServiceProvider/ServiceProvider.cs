@@ -5,7 +5,7 @@ namespace UnityEngine.Extension.WebAPI
 {
     public abstract class ServiceProvider<ServiceType> where ServiceType : ServiceProvider<ServiceType>, new()
     {
-        public static ServiceProvider<ServiceType> Instance
+        public static ServiceType Instance
         {
             get
             {
@@ -16,7 +16,7 @@ namespace UnityEngine.Extension.WebAPI
                 return _instance;
             }
         }
-        private static ServiceProvider<ServiceType> _instance = null;
+        private static ServiceType _instance = null;
 
         private ServiceProvider() { }
 
