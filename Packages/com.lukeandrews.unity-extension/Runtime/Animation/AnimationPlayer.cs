@@ -12,7 +12,7 @@ namespace UnityEngine.Extension
     {
         public struct PlaybackData
         {
-            public float CurrentTime { get { return _player == null ? 0.0F : _player.CurrentTime; } } 
+            public float CurrentTime { get { return _player == null ? 0.0F : _player.CurrentTime; } }
             public float CurrentNormalisedTime { get { return _player == null ? 0.0F : _player.CurrentNormalisedTime; } }
             public float Length { get { return _player == null ? 0.0F : _player.Length; } }
             public float RemainingTime { get { return _player == null ? 0.0F : _player.RemainingTime; } }
@@ -76,7 +76,7 @@ namespace UnityEngine.Extension
 
         public AnimationPlayer(IAnimation animation)
         {
-            if(animation == null)
+            if (animation == null)
             {
                 throw new ArgumentNullException(nameof(animation));
             }
@@ -92,27 +92,28 @@ namespace UnityEngine.Extension
                 animationPlayable.PlaybackSpeed);
         }
 
-        public static AnimationPlayer PlayAnimation(IAnimation animation, float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, 
+        public static AnimationPlayer PlayAnimation(IAnimation animation, float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward,
             EasingMode easingMode = EasingMode.Linear, TimeMode timeMode = TimeMode.Scaled, float playbackSpeed = 1.0F)
         {
             AnimationPlayer player = new AnimationPlayer(animation);
-            player.Play(startTime, playbackMode, easingMode, timeMode);
+            player.Play(startTime, playbackMode, easingMode, timeMode, playbackSpeed);
             return player;
         }
 
-        public void Play(float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, 
+        public void Play(float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear,
             TimeMode timeMode = TimeMode.Scaled, float playbackSpeed = 1.0F)
-        {   
-            if(!IsPlaying)
+        {
+            if (!IsPlaying)
             {
                 IsPlaying = true;
                 AnimationSystemRunner.AddPlayer(this);
             }
             Animation.Prepare();
 
-            this.TimeMode = timeMode;
-            this.EasingMode = easingMode;
-            this.PlaybackMode = playbackMode;
+            TimeMode = timeMode;
+            EasingMode = easingMode;
+            PlaybackMode = playbackMode;
+            PlaybackSpeed = playbackSpeed;
             CurrentTime = Mathf.Clamp(startTime, 0.0F, Length);
 
             EvaluateAnimation();
@@ -141,7 +142,7 @@ namespace UnityEngine.Extension
 
         public bool Pause()
         {
-            if(IsPlaying && !IsPaused)
+            if (IsPlaying && !IsPaused)
             {
                 IsPaused = true;
                 return true;
@@ -151,7 +152,7 @@ namespace UnityEngine.Extension
 
         public bool Resume()
         {
-            if(IsPlaying && IsPaused)
+            if (IsPlaying && IsPaused)
             {
                 IsPaused = false;
                 return true;
@@ -198,7 +199,7 @@ namespace UnityEngine.Extension
         {
             if (IsPlaying && _lastUpdateFrame != Time.frameCount)
             {
-                float deltaTime = TimeMode == TimeMode.Scaled? Time.deltaTime : Time.unscaledDeltaTime;
+                float deltaTime = TimeMode == TimeMode.Scaled ? Time.deltaTime : Time.unscaledDeltaTime;
                 deltaTime *= PlaybackSpeed;
 
                 bool isAtEnd = false;
@@ -220,7 +221,7 @@ namespace UnityEngine.Extension
                     IsPlaying = false;
                     OnComplete.Invoke(Animation);
                 }
-            }                        
+            }
         }
 
         private void EvaluateAnimation()
