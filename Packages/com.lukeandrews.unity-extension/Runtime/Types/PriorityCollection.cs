@@ -91,6 +91,11 @@ namespace UnityEngine.Extension
             return true;
         }
 
+        public bool Contains(in T element)
+        {
+            return _elements.Contains(element);
+        }
+
         public IEnumerator<T> GetEnumerator()
         {
             return new Enumerator(this);
