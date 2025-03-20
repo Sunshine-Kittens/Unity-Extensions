@@ -15,7 +15,7 @@ namespace UnityEngine.Extension
             }
         }
 
-        private struct PrioritizedElement : IEquatable<T>
+        private struct PrioritizedElement : IEquatable<PrioritizedElement>, IEquatable<T>
         {
             public T Element { get; private set; }
             public int Priority { get; private set; }
@@ -32,12 +32,25 @@ namespace UnityEngine.Extension
 
             public override bool Equals(object obj)
             {
-                return Element.Equals(obj);
-            }
+                if (obj is PrioritizedElement otherElement)
+                {
+                    return Equals(otherElement);
+                }
+                else if (obj is T otherT)
+                {
+                    return Equals(otherT);
+                }
+                return false;
+            }            
 
             public bool Equals(T other)
             {
                 return Element.Equals(other);
+            }
+
+            public bool Equals(PrioritizedElement other)
+            {
+                return Element.Equals(other.Element);
             }
 
             public PrioritizedElement(T element, int priority)
@@ -47,8 +60,8 @@ namespace UnityEngine.Extension
                     throw new ArgumentNullException(nameof(element));
                 }
 
-                this.Element = element;
-                this.Priority = priority;
+                Element = element;
+                Priority = priority;
             }
         }
 
