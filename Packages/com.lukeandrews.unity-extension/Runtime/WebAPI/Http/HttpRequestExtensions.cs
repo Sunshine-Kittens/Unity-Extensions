@@ -1,3 +1,6 @@
+using System.Text;
+using Newtonsoft.Json;
+
 namespace UnityEngine.Extension.WebAPI
 {
     public static class HttpRequestExtensions
@@ -55,6 +58,13 @@ namespace UnityEngine.Extension.WebAPI
         public static void SetContentTypeJson(this HttpRequest self)
         {
             self.SetHeader("Content-Type", "application/json");
+        }
+
+        public static void SetBodyJson(this HttpRequest self, object data)
+        {
+            string jsonString = JsonConvert.SerializeObject(data);
+            byte[] bytes = Encoding.UTF8.GetBytes(jsonString);
+            self.SetBody(bytes);
         }
     }
 }
