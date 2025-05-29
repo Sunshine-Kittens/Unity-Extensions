@@ -3,23 +3,30 @@ using System.Threading.Tasks;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public class HttpRequestException : Exception
+    public class HttpException : Exception
     {
-        public HttpResponse Response { get; }
+        public HttpException() { }
+        public HttpException(string message) : base(message) { }
+        public HttpException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    public class HttpRequestException : HttpException
+    {
+        public ReadOnlyHttpResponse Response { get; }
 
         public HttpRequestException(HttpResponse response)
         {
-            Response = response;
+            Response = new ReadOnlyHttpResponse(response);
         }
 
         public HttpRequestException(HttpResponse response, string message) : base(message)
         {
-            Response = response;
+            Response = new ReadOnlyHttpResponse(response);
         }
 
         public HttpRequestException(HttpResponse response, string message, Exception inner) : base(message, inner)
         {
-            Response = response;
+            Response = new ReadOnlyHttpResponse(response);
         }
     }
 

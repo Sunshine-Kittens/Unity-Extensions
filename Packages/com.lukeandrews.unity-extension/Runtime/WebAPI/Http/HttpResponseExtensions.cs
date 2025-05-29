@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+using System;
 using System.Text;
 
 namespace UnityEngine.Extension.WebAPI
@@ -42,6 +45,18 @@ namespace UnityEngine.Extension.WebAPI
             return self.Headers["Content-Type"];
         }
 
+        public static JObject GetJsonFromData(this HttpResponse self)
+        {
+            Encoding encoding = GetTextEncoder(GetContentType(self));
+            return JObject.Parse(encoding.GetString(self.Data));
+        }
+
+        public static T JsonDeserializeFromData<T>(this HttpResponse self)
+        {
+            Encoding encoding = GetTextEncoder(GetContentType(self));
+            return JsonConvert.DeserializeObject<T>(encoding.GetString(self.Data));
+        }
+
         public static bool TryGetStringFromData(this ReadOnlyHttpResponse self, out string dataString)
         {
             try
@@ -77,6 +92,18 @@ namespace UnityEngine.Extension.WebAPI
         public static string GetContentType(this ReadOnlyHttpResponse self)
         {
             return self.Headers["Content-Type"];
+        }
+
+        public static JObject GetJsonFromData(this ReadOnlyHttpResponse self)
+        {
+            Encoding encoding = GetTextEncoder(GetContentType(self));
+            return JObject.Parse(encoding.GetString(self.Data));
+        }
+
+        public static T JsonDeserializeFromData<T>(this ReadOnlyHttpResponse self)
+        {
+            Encoding encoding = GetTextEncoder(GetContentType(self));
+            return JsonConvert.DeserializeObject<T>(encoding.GetString(self.Data));
         }
 
         private static Encoding GetTextEncoder(string contentType)
