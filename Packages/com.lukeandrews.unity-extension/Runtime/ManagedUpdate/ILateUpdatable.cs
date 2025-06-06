@@ -1,6 +1,6 @@
 namespace UnityEngine.Extension
 {
-    public interface ILateUpdatable
+    public interface ILateUpdatable : IManagedObject
     {
         public void ManagedLateUpdate();
     }

@@ -20,7 +20,10 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    List[i].ManagedUpdate();
+                    if (List[i].activeInHierarchy)
+                    {
+                        List[i].ManagedUpdate();
+                    }                    
                 }
             }
         }
@@ -37,7 +40,10 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    List[i].ManagedLateUpdate();
+                    if (List[i].activeInHierarchy)
+                    {
+                        List[i].ManagedLateUpdate();
+                    }
                 }
             }
         }
@@ -54,7 +60,10 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    List[i].ManagedFixedUpdate();
+                    if (List[i].activeInHierarchy)
+                    {
+                        List[i].ManagedFixedUpdate();
+                    }
                 }
             }
         }
