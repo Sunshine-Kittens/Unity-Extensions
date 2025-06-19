@@ -20,7 +20,7 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    if (List[i].activeInHierarchy)
+                    if (List[i].Active)
                     {
                         List[i].ManagedUpdate();
                     }                    
@@ -40,7 +40,7 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    if (List[i].activeInHierarchy)
+                    if (List[i].Active)
                     {
                         List[i].ManagedLateUpdate();
                     }
@@ -60,7 +60,7 @@ namespace UnityEngine.Extension
             {
                 for (int i = 0; i < List.Count; i++)
                 {
-                    if (List[i].activeInHierarchy)
+                    if (List[i].Active)
                     {
                         List[i].ManagedFixedUpdate();
                     }

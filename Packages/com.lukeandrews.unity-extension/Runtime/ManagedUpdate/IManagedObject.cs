@@ -2,7 +2,6 @@
 {
     public interface IManagedObject
     {
-        public bool activeSelf { get; }
-        public bool activeInHierarchy { get; }
+        public bool Active { get; }
     }
 }

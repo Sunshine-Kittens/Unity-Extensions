@@ -5,9 +5,8 @@ namespace UnityEngine.Extension
     public class AnimationSystemRunner : ILateUpdatable
     {
         private static AnimationSystemRunner _instance = null;
-
-        public bool activeSelf => true;
-        public bool activeInHierarchy => true;
+        
+        public bool Active => true;
         
         private static AnimationSystemRunner GetInstance()
         {
