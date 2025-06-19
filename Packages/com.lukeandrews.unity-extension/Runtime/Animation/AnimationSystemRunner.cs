@@ -6,6 +6,9 @@ namespace UnityEngine.Extension
     {
         private static AnimationSystemRunner _instance = null;
 
+        public bool activeSelf => true;
+        public bool activeInHierarchy => true;
+        
         private static AnimationSystemRunner GetInstance()
         {
             if (_instance == null)
