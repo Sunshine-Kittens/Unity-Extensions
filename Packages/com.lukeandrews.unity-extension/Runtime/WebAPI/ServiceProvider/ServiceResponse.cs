@@ -27,7 +27,7 @@ namespace UnityEngine.Extension.WebAPI
 
         private ServiceResponse() { }
 
-        public ServiceResponse(IHttpResponse httpResponse)
+        protected ServiceResponse(IHttpResponse httpResponse)
         {
             _httpResponse = httpResponse ?? throw new ArgumentNullException(nameof(httpResponse));
         }

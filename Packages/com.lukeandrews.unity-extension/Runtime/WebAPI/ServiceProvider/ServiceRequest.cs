@@ -12,7 +12,7 @@ namespace UnityEngine.Extension.WebAPI
         protected abstract HttpMethod Method { get; }
         protected abstract string ResourcePath { get; }
 
-        private ServiceRequest() { }
+        protected ServiceRequest() { }
 
         protected abstract TServiceResponse CreateResponse(IHttpResponse httpResponse);
         
