@@ -34,4 +34,26 @@ namespace UnityEngine.Extension.WebAPI
             StatusCode = statusCode;
         }
     }
+    
+    public class HttpResponseException : HttpException
+    {
+        public HttpResponseError HttpResponseError { get; }
+
+        public HttpResponseException(HttpResponseError httpResponseError)
+        {
+            HttpResponseError = httpResponseError;
+        }
+        
+        public HttpResponseException(HttpResponseError httpResponseError, string message)
+            : base(message)
+        {
+            HttpResponseError = httpResponseError;
+        }
+
+        public HttpResponseException(HttpResponseError httpResponseError, string message, Exception inner)
+            : base(message, inner)
+        {
+            HttpResponseError = httpResponseError;
+        }
+    }
 }

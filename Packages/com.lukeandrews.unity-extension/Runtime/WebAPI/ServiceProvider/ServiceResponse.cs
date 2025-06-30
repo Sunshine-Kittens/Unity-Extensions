@@ -34,13 +34,23 @@ namespace UnityEngine.Extension.WebAPI
 
         public abstract bool ProcessResponse();
 
-        public async ValueTask WaitForBodyDataAsync(CancellationToken cancellationToken)
+        public async ValueTask ProcessBodyDataAsync(CancellationToken cancellationToken)
         {
             await _httpResponse.Body.WaitForCompletionAsync(cancellationToken);
-            ProcessBodyData();
+            try
+            {
+                if (!ProcessBodyData())
+                {
+                    throw new HttpResponseException(HttpResponseError.DataProcessingError);
+                }
+            }
+            catch (Exception exception)
+            {
+                throw new HttpResponseException(HttpResponseError.DataProcessingError, exception.Message, exception);
+            }
         }
-
-        public abstract bool ProcessBodyData();
+        
+        protected abstract bool ProcessBodyData();
 
         public void Dispose()
         {

@@ -27,7 +27,17 @@ namespace UnityEngine.Extension.WebAPI
             {
                 httpResponse = await HttpClient.Instance.Send(request);
                 serviceResponse = CreateResponse(httpResponse);
-                serviceResponse.ProcessResponse();
+                try
+                {
+                    if (!serviceResponse.ProcessResponse())
+                    {
+                        throw new HttpResponseException(HttpResponseError.ResponseProcessingError);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    throw new HttpResponseException(HttpResponseError.ResponseProcessingError, exception.Message, exception);
+                }
                 return serviceResponse;
             }
             catch (Exception)

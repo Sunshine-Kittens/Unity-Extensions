@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UnityEngine.Extension
+namespace UnityEngine.Extension.WebAPI
 {
     public enum HttpRequestError
     {
