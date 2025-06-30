@@ -34,7 +34,7 @@ namespace UnityEngine.Extension.WebAPI
 
         public abstract bool ProcessResponse();
 
-        public async ValueTask ProcessBodyDataAsync(CancellationToken cancellationToken)
+        public async ValueTask ProcessBodyDataAsync(CancellationToken cancellationToken = default)
         {
             await _httpResponse.Body.WaitForCompletionAsync(cancellationToken);
             try

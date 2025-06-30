@@ -40,6 +40,7 @@ namespace UnityEngine.Extension.WebAPI
         public static void SetMaxAge(this HttpRequest self, int seconds) => self.SetCacheControl($"max-age={seconds}");
         public static void SetIfModifiedSince(this HttpRequest self, DateTime dateTime) => self.SetHeader("If-Modified-Since", dateTime.ToUniversalTime().ToString("r"));
         public static void SetIfNoneMatch(this HttpRequest self, string etag) => self.SetHeader("If-None-Match", etag);
+        public static void SetIfMatch(this HttpRequest self, string etag) => self.SetHeader("If-Match", etag);
         public static void SetAcceptEncoding(this HttpRequest self, string encodings) => self.SetHeader("Accept-Encoding", encodings);
         public static void SetAcceptEncodingGzip(this HttpRequest self) => self.SetAcceptEncoding("gzip");
         public static void SetAcceptEncodingDeflate(this HttpRequest self) => self.SetAcceptEncoding("deflate");
