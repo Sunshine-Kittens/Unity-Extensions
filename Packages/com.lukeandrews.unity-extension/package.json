@@ -1,9 +1,9 @@
 {
   "name": "com.lukeandrews.unity-extension",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "displayName": "Unity Engine Extension",
   "description": "A code library that extends the default Unity3D engine functionality.",
-  "unity": "2022.3",
+  "unity": "6000.0",
   "documentationUrl": "https://example.com/",
   "changelogUrl": "https://example.com/changelog.html",
   "licensesUrl": "https://example.com/licensing.html",

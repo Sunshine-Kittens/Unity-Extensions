@@ -3,20 +3,20 @@ using System.IO;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public abstract class ServiceProvider<ServiceType> where ServiceType : ServiceProvider<ServiceType>, new()
+    public abstract class ServiceProvider<TServiceType> where TServiceType : ServiceProvider<TServiceType>, new()
     {
-        public static ServiceType Instance
+        public static TServiceType Instance
         {
             get
             {
                 if (_instance == null)
                 {
-                    _instance = new ServiceType();
+                    _instance = new TServiceType();
                 }
                 return _instance;
             }
         }
-        private static ServiceType _instance = null;
+        private static TServiceType _instance = null;
 
         private ServiceProvider() { }
 
@@ -61,13 +61,11 @@ namespace UnityEngine.Extension.WebAPI
             }
             return default;
         }
-
-        public virtual HttpRequest CreateRequest(string resourcePath)
+        
+        public virtual HttpRequest CreateRequest(HttpMethod method, string resourcePath)
         {
             string url = BuildUrl(GetUrl(), resourcePath);
-            HttpRequest request = new HttpRequest();
-            request.SetUrl(url);
-            request.SetOptions(GetDefaultOptions());
+            HttpRequest request = new HttpRequest(method, url, GetDefaultOptions());
             return request;
         }
 

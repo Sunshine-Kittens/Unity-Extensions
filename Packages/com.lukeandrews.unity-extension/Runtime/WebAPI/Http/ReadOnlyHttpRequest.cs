@@ -1,19 +1,75 @@
+using System;
 using System.Collections.Generic;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public struct ReadOnlyHttpRequest
+    public readonly struct ReadOnlyHttpRequest
     {
-        private HttpRequest _request;
+        private readonly HttpRequest _request;
 
         public ReadOnlyHttpRequest(HttpRequest request)
         {
             _request = request;
         }
 
-        public string Method { get { return _request.Method; } }
-        public string Url { get { return _request.Url; } }
-        public IReadOnlyDictionary<string, string> Headers { get { return _request.Headers; } }
-        public byte[] Body { get { return _request.Body; } }
+        public string Method
+        {
+            get
+            {
+                if (_request != null)
+                {
+                    return _request.Method;
+                }
+                return string.Empty;
+            }
+        }
+
+        public string Url 
+        {
+            get
+            {
+                if (_request != null)
+                {
+                    return _request.Url;
+                }
+                return string.Empty;
+            }
+        }
+        
+        public IReadOnlyDictionary<string, string> Headers 
+        {
+            get
+            {
+                if (_request != null)
+                {
+                    return _request.Headers;
+                }
+                return null;
+            }
+        }
+        
+        public byte[] Body 
+        {
+            get
+            {
+                if (_request != null)
+                {
+                    return _request.Body;
+                }
+                return null;
+            }
+        }
+        
+        public HttpOptions Options 
+        {
+            get
+            {
+                if (_request != null)
+                {
+                    return _request.Options;
+                }
+                return default;
+            }
+        }
     }
 }
