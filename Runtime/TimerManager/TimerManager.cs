@@ -25,7 +25,7 @@ namespace UnityEngine.Extension
         }
         private ulong _handle;
 
-        public bool IsValid()
+        public readonly bool IsValid()
         {
             return _handle != 0;
         }
@@ -90,13 +90,13 @@ namespace UnityEngine.Extension
 
     public class TimerData
     {
-        public bool Loop = false;
+        public bool Loop;
         public TimerStatus Status = TimerStatus.Pending;
-        public float Rate = 0.0F;
-        public double ExpireTime = 0.0;
+        public float Rate;
+        public double ExpireTime;
         public bool UnscaledTime = true;
-        public TimerDelegate TimerDelegate = null;
-        public TimerHandle Handle = new TimerHandle();
+        public TimerDelegate TimerDelegate;
+        public TimerHandle Handle;
     }
 
     public static class TimerManager
@@ -107,10 +107,8 @@ namespace UnityEngine.Extension
 
             public Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
 
-            private readonly Action _update = null;
-
-            private TimerManagerPlayerLoopSystem() { }
-
+            private readonly Action _update;
+            
             public TimerManagerPlayerLoopSystem(Action update)
             {
                 _update = update;
@@ -122,36 +120,23 @@ namespace UnityEngine.Extension
             }
         }
 
-        private static ulong _lastAssignedHandle = 0;
+        private static ulong _lastAssignedHandle;
 
-        private static Dictionary<ulong, TimerData> _timers = new Dictionary<ulong, TimerData>();
-        private static List<TimerHandle> _activeTimers = new List<TimerHandle>();
-        private static HashSet<TimerHandle> _pendingTimers = new HashSet<TimerHandle>();
-        private static HashSet<TimerHandle> _pausedTimers = new HashSet<TimerHandle>();
+        private static Dictionary<ulong, TimerData> _timers = new();
+        private static List<TimerHandle> _activeTimers = new();
+        private static HashSet<TimerHandle> _pendingTimers = new();
+        private static HashSet<TimerHandle> _pausedTimers = new();
+        private static TimerHandleComparison _handleComparison;
 
-        private static TimerHandleComparison _handleComparison
-        {
-            get
-            {
-                _handleComparisonInstance ??= new TimerHandleComparison
-                {
-                    Timers = _timers
-                };
-                return _handleComparisonInstance;
-            }
-        }
+        private static int _lastUpdatedFrame;
+        private static double _internalTime;
+        private static double _internalUnscaledTime;
 
-        private static TimerHandleComparison _handleComparisonInstance = null;
-
-        private static int _lastUpdatedFrame = 0;
-        private static double _internalTime = 0.0;
-        private static double _internalUnscaledTime = 0.0;
-
-        private static TimerHandle _currentlyExecutingTimer = new TimerHandle();
+        private static TimerHandle _currentlyExecutingTimer;
 
         public static IPlayerLoopSystem PlayerLoopSystem => _PlayerLoopSystem;
 
-        private static readonly TimerManagerPlayerLoopSystem _PlayerLoopSystem = new TimerManagerPlayerLoopSystem(Update);
+        private static readonly TimerManagerPlayerLoopSystem _PlayerLoopSystem = new(Update);
 
         static TimerManager() { }
 
@@ -162,6 +147,10 @@ namespace UnityEngine.Extension
             _activeTimers = new List<TimerHandle>();
             _pendingTimers = new HashSet<TimerHandle>();
             _pausedTimers = new HashSet<TimerHandle>();
+            _handleComparison = new TimerHandleComparison
+            {
+                Timers = _timers
+            };
             _lastUpdatedFrame = 0;
             _internalTime = 0.0;
             _internalUnscaledTime = 0.0;
@@ -247,8 +236,7 @@ namespace UnityEngine.Extension
 
         public static void SetTimer(ref TimerHandle timerHandle, TimerDelegate timerDelegate, float rate, bool loop = false, float initialDelay = -1.0F, bool unscaledTime = true)
         {
-            TimerData timerData = null;
-            if (FindTimer(in timerHandle, ref timerData))
+            if (FindTimer(in timerHandle, out TimerData timerData))
             {
                 InternalClearTimer(in timerData);
             }
@@ -307,48 +295,44 @@ namespace UnityEngine.Extension
 
         public static bool PauseTimer(in TimerHandle timerHandle)
         {
-            TimerData timerData = null;
-            if (FindTimer(in timerHandle, ref timerData))
+            if (FindTimer(in timerHandle, out TimerData timerData) && timerData.Status != TimerStatus.Paused)
             {
-                if (timerData.Status != TimerStatus.Paused)
+                TimerStatus previousStatus = timerData.Status;
+                switch (previousStatus)
                 {
-                    TimerStatus previousStatus = timerData.Status;
-                    switch (previousStatus)
-                    {
-                        case TimerStatus.Pending:
-                            _pendingTimers.Remove(timerHandle);
-                            break;
-                        case TimerStatus.Active:
-                            _activeTimers.Remove(timerHandle);
-                            break;
-                        case TimerStatus.Executing:
-                            _currentlyExecutingTimer.Invalidate();
-                            break;
-                    }
-
-                    if (previousStatus == TimerStatus.Executing && !timerData.Loop)
-                    {
-                        RemoveTimer(timerHandle);
-                    }
-                    else
-                    {
-                        _pausedTimers.Add(timerHandle);
-                        timerData.Status = TimerStatus.Paused;
-                        if (previousStatus == TimerStatus.Pending)
-                        {
-                            timerData.ExpireTime -= GetInternalTime(timerData.UnscaledTime);
-                        }
-                    }
-                    return true;
+                    case TimerStatus.Pending:
+                        _pendingTimers.Remove(timerHandle);
+                        break;
+                    case TimerStatus.Active:
+                        _activeTimers.Remove(timerHandle);
+                        break;
+                    case TimerStatus.Executing:
+                        _currentlyExecutingTimer.Invalidate();
+                        break;
                 }
+
+                // Don't pause the timer if it's currently executing and isn't going to loop
+                if (previousStatus == TimerStatus.Executing && !timerData.Loop)
+                {
+                    RemoveTimer(timerHandle);
+                }
+                else
+                {
+                    _pausedTimers.Add(timerHandle);
+                    timerData.Status = TimerStatus.Paused;
+                    if (previousStatus != TimerStatus.Pending)
+                    {
+                        timerData.ExpireTime -= GetInternalTime(timerData.UnscaledTime);
+                    }
+                }
+                return true;
             }
             return false;
         }
 
         public static bool UnPauseTimer(in TimerHandle timerHandle)
         {
-            TimerData timerData = null;
-            if (FindTimer(in timerHandle, ref timerData))
+            if (FindTimer(in timerHandle, out TimerData timerData) && timerData.Status == TimerStatus.Paused)
             {
                 if (HasUpdatedThisFrame())
                 {
@@ -369,8 +353,7 @@ namespace UnityEngine.Extension
 
         public static bool ClearTimer(in TimerHandle timerHandle)
         {
-            TimerData timerData = null;
-            if (FindTimer(in timerHandle, ref timerData))
+            if (FindTimer(in timerHandle, out TimerData timerData))
             {
                 InternalClearTimer(timerData);
                 return true;
@@ -434,7 +417,7 @@ namespace UnityEngine.Extension
             return _timers[timerHandle.Handle];
         }
 
-        private static bool FindTimer(in TimerHandle timerHandle, ref TimerData timerData)
+        private static bool FindTimer(in TimerHandle timerHandle, out TimerData timerData)
         {
             if (timerHandle.IsValid())
             {
@@ -444,9 +427,9 @@ namespace UnityEngine.Extension
                     {
                         return true;
                     }
-                    timerData = null;
                 }
             }
+            timerData = null;
             return false;
         }
 
