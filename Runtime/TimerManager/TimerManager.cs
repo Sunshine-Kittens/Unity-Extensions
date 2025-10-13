@@ -266,7 +266,7 @@ namespace UnityEngine.Extension
                 double expireTime = initialDelay >= 0.0 ? initialDelay : rate;
 
                 TimerHandle newHandle;
-                if (!HasUpdatedThisFrame())
+                if (HasUpdatedThisFrame())
                 {
                     newTimerData.ExpireTime = GetInternalTime(unscaledTime) + expireTime;
                     newTimerData.Status = TimerStatus.Active;
@@ -339,6 +339,7 @@ namespace UnityEngine.Extension
                             timerData.ExpireTime -= GetInternalTime(timerData.UnscaledTime);
                         }
                     }
+                    return true;
                 }
             }
             return false;
@@ -361,6 +362,7 @@ namespace UnityEngine.Extension
                     _pendingTimers.Add(timerHandle);
                 }
                 _pausedTimers.Remove(timerHandle);
+                return true;
             }
             return false;
         }
@@ -381,6 +383,7 @@ namespace UnityEngine.Extension
             switch (timerData.Status)
             {
                 case TimerStatus.Pending:
+                    _pendingTimers.Remove(timerData.Handle);
                     RemoveTimer(timerData.Handle);
                     break;
                 case TimerStatus.Active:
@@ -391,10 +394,13 @@ namespace UnityEngine.Extension
                     RemoveTimer(timerData.Handle);
                     break;
                 case TimerStatus.Executing:
+                    // Edge case. We're currently handling this timer when it got cleared.  Clear it to prevent it firing again
+                    // in case it was scheduled to fire multiple times.
                     _currentlyExecutingTimer.Invalidate();
                     RemoveTimer(timerData.Handle);
                     break;
                 case TimerStatus.ActivePendingRemoval:
+                    // Already removed
                     break;
             }
         }
