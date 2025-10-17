@@ -5,10 +5,14 @@ namespace UnityEngine.Extension
 {
     public abstract class ObjectPool
     {
-        private readonly HashSet<Component> _activeObjects = new HashSet<Component>();
-        private readonly List<Component> _inactivePool = new List<Component>();
+        private readonly HashSet<Component> _activeObjects;
+        private readonly List<Component> _inactivePool;
 
-        private ObjectPool() { }
+        protected ObjectPool()
+        {
+            _activeObjects = new HashSet<Component>();
+            _inactivePool = new List<Component>();
+        }
 
         protected ObjectPool(int capacity)
         {
