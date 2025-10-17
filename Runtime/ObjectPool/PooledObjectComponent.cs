@@ -9,39 +9,30 @@ namespace UnityEngine.Extension
 
         public void Init(Component owningObject, ObjectPool owningPool)
         {
-            _owningObject = owningObject;
-            _owningPool = owningPool;
+            _owningObject = owningObject ?? throw new ArgumentNullException(nameof(owningObject));
+            _owningPool = owningPool ?? throw new ArgumentNullException(nameof(owningPool));
         }
 
-        public void DeactivateToPool()
+        public void ReturnToPool()
         {
-            if (_owningPool == null)
+            if (_owningPool != null && _owningObject != null)
             {
-                throw new InvalidOperationException("Owning pool is invalid.");
+                OnReturnToPool();
+                _owningPool.ReturnToPool(_owningObject);
             }
-
-            if (_owningObject == null)
-            {
-                throw new InvalidOperationException("Owning object is invalid.");
-            }
-            _owningPool.ReturnToPool(_owningObject);
         }
+
+        protected virtual void OnReturnToPool() { }
 
         public void DestroyFromPool()
         {
-            if (_owningPool == null)
+            if (_owningPool != null && _owningObject != null)
             {
-                throw new InvalidOperationException("Owning pool is invalid.");
+                _owningPool.DestroyFromPool(_owningObject);
             }
-
-            if (_owningObject == null)
-            {
-                throw new InvalidOperationException("Owning object is invalid.");
-            }
-            _owningPool.DestroyFromPool(_owningObject);
         }
 
-        private void OnDestroy()
+        protected virtual void OnDestroy()
         {
             DestroyFromPool();
         }

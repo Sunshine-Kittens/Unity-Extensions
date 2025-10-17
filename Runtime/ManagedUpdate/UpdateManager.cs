@@ -9,10 +9,10 @@ namespace UnityEngine.Extension
     {
         private class ManagedUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
-            public Type EntryPoint { get { return typeof(Update.ScriptRunBehaviourUpdate); } }
+            public EntryPointLocation Location => EntryPointLocation.Before;
+            public Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
 
-            public List<IUpdatable> List = new List<IUpdatable>();
+            public readonly List<IUpdatable> List = new List<IUpdatable>();
 
             public ManagedUpdatePlayerLoopSystem() { }
 
@@ -30,9 +30,9 @@ namespace UnityEngine.Extension
 
         private class ManagedLateUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public List<ILateUpdatable> List = new List<ILateUpdatable>();
-            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
-            public Type EntryPoint { get { return typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate); } }
+            public readonly List<ILateUpdatable> List = new List<ILateUpdatable>();
+            public EntryPointLocation Location => EntryPointLocation.Before;
+            public Type EntryPoint => typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate);
 
             public ManagedLateUpdatePlayerLoopSystem() { }
 
@@ -50,9 +50,9 @@ namespace UnityEngine.Extension
 
         private class ManagedFixedUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public List<IFixedUpdatable> List = new List<IFixedUpdatable>();
-            public EntryPointLocation Location { get { return EntryPointLocation.Before; } }
-            public Type EntryPoint { get { return typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate); } }
+            public readonly List<IFixedUpdatable> List = new List<IFixedUpdatable>();
+            public EntryPointLocation Location => EntryPointLocation.Before;
+            public Type EntryPoint => typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate);
 
             public ManagedFixedUpdatePlayerLoopSystem() { }
 
@@ -68,13 +68,13 @@ namespace UnityEngine.Extension
             }
         }
 
-        public static IPlayerLoopSystem UpdatablesPlayerLoopSystem { get { return _updatablesPlayerLoopSystem; } }
+        public static IPlayerLoopSystem UpdatablesPlayerLoopSystem => _updatablesPlayerLoopSystem;
         private static ManagedUpdatePlayerLoopSystem _updatablesPlayerLoopSystem = new ManagedUpdatePlayerLoopSystem();
-        public static IPlayerLoopSystem LateUpdatablesPlayerLoopSystem { get { return _lateUpdatablesPlayerLoopSystem; } }
+        public static IPlayerLoopSystem LateUpdatablesPlayerLoopSystem => _lateUpdatablesPlayerLoopSystem;
         private static ManagedLateUpdatePlayerLoopSystem _lateUpdatablesPlayerLoopSystem = new ManagedLateUpdatePlayerLoopSystem();
-        public static IPlayerLoopSystem FixedUpdatablesPlayerLoopSystem { get { return _fixedUpdatablesPlayerLoopSystem; } }
+        public static IPlayerLoopSystem FixedUpdatablesPlayerLoopSystem => _fixedUpdatablesPlayerLoopSystem;
         private static ManagedFixedUpdatePlayerLoopSystem _fixedUpdatablesPlayerLoopSystem = new ManagedFixedUpdatePlayerLoopSystem();
-
+        
         static UpdateManager()
         {
 

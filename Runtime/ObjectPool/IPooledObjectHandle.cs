@@ -4,7 +4,7 @@ namespace UnityEngine.Extension
     {
         public void Init(Component owningObject, ObjectPool owningPool);
 
-        public void DeactivateToPool();
+        public void ReturnToPool();
 
         public void DestroyFromPool();
     }
