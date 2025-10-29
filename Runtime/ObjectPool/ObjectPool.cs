@@ -22,14 +22,19 @@ namespace UnityEngine.Extension
 
         protected T Get<T>(T template) where T : Component
         {
-            T instance;
+            T instance = null;
             if (_inactivePool.Count > 0)
             {
-                instance = _inactivePool[^1] as T;
-                instance.gameObject.SetActive(true);
-                _inactivePool.RemoveAt(_inactivePool.Count - 1);
+                Component component = _inactivePool[^1];
+                if (component != null)
+                {
+                    component.gameObject.SetActive(true);
+                    _inactivePool.RemoveAt(_inactivePool.Count - 1);
+                    instance = component as T;
+                }
             }
-            else
+            
+            if(instance == null)
             {
                 instance = UnityEngine.Object.Instantiate(template);
                 IPooledObjectHandle handle = instance.GetComponent<IPooledObjectHandle>();
@@ -73,7 +78,7 @@ namespace UnityEngine.Extension
                     throw new InvalidOperationException("Unable to destroy object from a pool that it does not belong to.");
                 }
             }
-            UnityEngine.Object.Destroy(pooledObject);
+            Object.Destroy(pooledObject);
         }
 
         public void ReturnAllToPool()
@@ -90,12 +95,12 @@ namespace UnityEngine.Extension
         {
             foreach (Component pooledObject in _activeObjects)
             {
-                UnityEngine.Object.Destroy(pooledObject);
+                Object.Destroy(pooledObject);
             }
             _activeObjects.Clear();
             for (int i = 0; i < _inactivePool.Count; i++)
             {
-                UnityEngine.Object.Destroy(_inactivePool[i]);
+                Object.Destroy(_inactivePool[i]);
             }
             _inactivePool.Clear();
         }

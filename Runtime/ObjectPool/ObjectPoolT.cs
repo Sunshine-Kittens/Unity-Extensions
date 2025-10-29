@@ -7,7 +7,7 @@ namespace UnityEngine.Extension
     {
         public ObjectPoolT(int capacity) : base(capacity) { }
 
-        public T template { get { return _template; } }
+        public T Template => _template;
         [SerializeField] private T _template = null;
 
         public T Get()
