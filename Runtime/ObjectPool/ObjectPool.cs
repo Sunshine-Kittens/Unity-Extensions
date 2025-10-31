@@ -3,89 +3,99 @@ using System.Collections.Generic;
 
 namespace UnityEngine.Extension
 {
-    public abstract class ObjectPool
+    public abstract class ObjectPool : IObjectPool
     {
-        private readonly HashSet<Component> _activeObjects;
-        private readonly List<Component> _inactivePool;
+        private readonly HashSet<GameObject> _activeObjects;
+        private readonly List<GameObject> _inactivePool;
 
         protected ObjectPool()
         {
-            _activeObjects = new HashSet<Component>();
-            _inactivePool = new List<Component>();
+            _activeObjects = new HashSet<GameObject>();
+            _inactivePool = new List<GameObject>();
         }
 
         protected ObjectPool(int capacity)
         {
-            _activeObjects = new HashSet<Component>(capacity);
-            _inactivePool = new List<Component>(capacity);
+            _activeObjects = new HashSet<GameObject>(capacity);
+            _inactivePool = new List<GameObject>(capacity);
         }
 
-        protected T Get<T>(T template) where T : Component
+        protected GameObject Get(GameObject template)
         {
-            T instance = null;
+            GameObject gameObject = null;
             if (_inactivePool.Count > 0)
             {
-                Component component = _inactivePool[^1];
-                if (component != null)
+                gameObject = _inactivePool[^1];
+                if (gameObject != null)
                 {
-                    component.gameObject.SetActive(true);
+                    gameObject.SetActive(true);
                     _inactivePool.RemoveAt(_inactivePool.Count - 1);
-                    instance = component as T;
                 }
             }
             
-            if(instance == null)
+            if(gameObject == null)
             {
-                instance = UnityEngine.Object.Instantiate(template);
-                IPooledObjectHandle handle = instance.GetComponent<IPooledObjectHandle>();
+                gameObject = Object.Instantiate(template);
+                OnInstantiate(gameObject);
+                IPooledObjectHandle handle = gameObject.GetComponent<IPooledObjectHandle>();
                 if (handle == null)
                 {
-                    handle = instance.gameObject.AddComponent<PooledObjectComponent>();
+                    handle = gameObject.AddComponent<PooledObjectComponent>();
                 }
-                handle.Init(instance, this);
+                handle.Init(this);
             }
-            _activeObjects.Add(instance);
-            return instance;
+            _activeObjects.Add(gameObject);
+            return gameObject;
         }
 
-        public void ReturnToPool(Component pooledObject)
+        public void ReturnToPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(pooledObject))
+            if (!_activeObjects.Remove(gameObject))
             {
                 throw new InvalidOperationException("Unable to return object to pool it does not belong to.");
             }
-            pooledObject.gameObject.SetActive(false);
-            _inactivePool.Add(pooledObject);
+            gameObject.SetActive(false);
+            _inactivePool.Add(gameObject);
         }
 
-        public void RemoveFromPool(Component pooledObject)
+        public void RemoveFromPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(pooledObject))
+            if (!_activeObjects.Remove(gameObject))
             {
-                if (!_inactivePool.Remove(pooledObject))
+                if (!_inactivePool.Remove(gameObject))
                 {
                     throw new InvalidOperationException("Unable to destroy object from a pool that it does not belong to.");
                 }
+            }
+            
+            if (_activeObjects.Count == 0 &&  _inactivePool.Count == 0)
+            {
+                OnPoolEmpty();
             }
         }
         
-        public void DestroyFromPool(Component pooledObject)
+        public void DestroyFromPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(pooledObject))
+            if (!_activeObjects.Remove(gameObject))
             {
-                if (!_inactivePool.Remove(pooledObject))
+                if (!_inactivePool.Remove(gameObject))
                 {
                     throw new InvalidOperationException("Unable to destroy object from a pool that it does not belong to.");
                 }
             }
-            Object.Destroy(pooledObject);
+            Object.Destroy(gameObject);
+
+            if (_activeObjects.Count == 0 &&  _inactivePool.Count == 0)
+            {
+                OnPoolEmpty();
+            }
         }
 
         public void ReturnAllToPool()
         {
-            foreach (Component pooledObject in _activeObjects)
+            foreach (GameObject pooledObject in _activeObjects)
             {
-                pooledObject.gameObject.SetActive(false);
+                pooledObject.SetActive(false);
                 _inactivePool.Add(pooledObject);
             }
             _activeObjects.Clear();
@@ -93,7 +103,7 @@ namespace UnityEngine.Extension
 
         public void Clear()
         {
-            foreach (Component pooledObject in _activeObjects)
+            foreach (GameObject pooledObject in _activeObjects)
             {
                 Object.Destroy(pooledObject);
             }
@@ -103,6 +113,11 @@ namespace UnityEngine.Extension
                 Object.Destroy(_inactivePool[i]);
             }
             _inactivePool.Clear();
+            OnPoolEmpty();
         }
+        
+        protected virtual void OnInstantiate(GameObject instantiatedObject) { }
+
+        protected virtual void OnPoolEmpty() { }
     }
 }
