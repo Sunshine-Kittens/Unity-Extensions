@@ -12,17 +12,17 @@ namespace UnityEngine.Extension
             public EntryPointLocation Location => EntryPointLocation.Before;
             public Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
 
-            public readonly List<IUpdatable> List = new List<IUpdatable>();
+            public readonly HashSet<IUpdatable> Set = new HashSet<IUpdatable>();
 
             public ManagedUpdatePlayerLoopSystem() { }
 
             public void Update()
             {
-                for (int i = 0; i < List.Count; i++)
+                foreach (IUpdatable updatable in Set)
                 {
-                    if (List[i].Active)
+                    if (updatable.Active)
                     {
-                        List[i].ManagedUpdate();
+                        updatable.ManagedUpdate();
                     }                    
                 }
             }
@@ -30,7 +30,7 @@ namespace UnityEngine.Extension
 
         private class ManagedLateUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public readonly List<ILateUpdatable> List = new List<ILateUpdatable>();
+            public readonly HashSet<ILateUpdatable> Set = new HashSet<ILateUpdatable>();
             public EntryPointLocation Location => EntryPointLocation.Before;
             public Type EntryPoint => typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate);
 
@@ -38,11 +38,11 @@ namespace UnityEngine.Extension
 
             public void Update()
             {
-                for (int i = 0; i < List.Count; i++)
+                foreach (ILateUpdatable updatable in Set)
                 {
-                    if (List[i].Active)
+                    if (updatable.Active)
                     {
-                        List[i].ManagedLateUpdate();
+                        updatable.ManagedLateUpdate();
                     }
                 }
             }
@@ -50,7 +50,7 @@ namespace UnityEngine.Extension
 
         private class ManagedFixedUpdatePlayerLoopSystem : IPlayerLoopSystem
         {
-            public readonly List<IFixedUpdatable> List = new List<IFixedUpdatable>();
+            public readonly HashSet<IFixedUpdatable> Set = new HashSet<IFixedUpdatable>();
             public EntryPointLocation Location => EntryPointLocation.Before;
             public Type EntryPoint => typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate);
 
@@ -58,11 +58,11 @@ namespace UnityEngine.Extension
 
             public void Update()
             {
-                for (int i = 0; i < List.Count; i++)
+                foreach (IFixedUpdatable updatable in Set)
                 {
-                    if (List[i].Active)
+                    if (updatable.Active)
                     {
-                        List[i].ManagedFixedUpdate();
+                        updatable.ManagedFixedUpdate();
                     }
                 }
             }
@@ -82,32 +82,32 @@ namespace UnityEngine.Extension
 
         public static void AddUpdatable(IUpdatable updatable)
         {
-            _updatablesPlayerLoopSystem.List.Add(updatable);
+            _updatablesPlayerLoopSystem.Set.Add(updatable);
         }
 
         public static void RemoveUpdatable(IUpdatable updatable)
         {
-            _updatablesPlayerLoopSystem.List.Remove(updatable);
+            _updatablesPlayerLoopSystem.Set.Remove(updatable);
         }
 
         public static void AddLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            _lateUpdatablesPlayerLoopSystem.List.Add(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.Set.Add(lateUpdatable);
         }
 
         public static void RemoveLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            _lateUpdatablesPlayerLoopSystem.List.Remove(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.Set.Remove(lateUpdatable);
         }
 
         public static void AddFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            _fixedUpdatablesPlayerLoopSystem.List.Add(fixedUpdatable);
+            _fixedUpdatablesPlayerLoopSystem.Set.Add(fixedUpdatable);
         }
 
         public static void RemoveFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            _fixedUpdatablesPlayerLoopSystem.List.Remove(fixedUpdatable);
+            _fixedUpdatablesPlayerLoopSystem.Set.Remove(fixedUpdatable);
         }
     }
 }
