@@ -8,8 +8,9 @@
   "changelogUrl": "https://example.com/changelog.html",
   "licensesUrl": "https://example.com/licensing.html",
   "dependencies": {
-    "com.unity.nuget.newtonsoft-json": "3.2.1"    
- },
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.addressables": "2.7.4"
+  },
  "keywords": [
     "engine",
     "extension"

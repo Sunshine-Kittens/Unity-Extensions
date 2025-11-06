@@ -4,21 +4,19 @@ namespace UnityEngine.Extension
 {
     public class PooledObjectComponent : MonoBehaviour, IPooledObjectHandle
     {
-        private Component _owningObject = null;
-        private ObjectPool _owningPool = null;
+        private IObjectPool _owningPool = null;
 
-        public void Init(Component owningObject, ObjectPool owningPool)
+        public void Init(IObjectPool owningPool)
         {
-            _owningObject = owningObject ?? throw new ArgumentNullException(nameof(owningObject));
             _owningPool = owningPool ?? throw new ArgumentNullException(nameof(owningPool));
         }
 
         public void ReturnToPool()
         {
-            if (_owningPool != null && _owningObject != null)
+            if (_owningPool != null)
             {
                 OnReturnToPool();
-                _owningPool.ReturnToPool(_owningObject);
+                _owningPool.ReturnToPool(gameObject);
             }
         }
 
@@ -26,9 +24,9 @@ namespace UnityEngine.Extension
 
         public void DestroyFromPool()
         {
-            if (_owningPool != null && _owningObject != null)
+            if (_owningPool != null)
             {
-                _owningPool.DestroyFromPool(_owningObject);
+                _owningPool.DestroyFromPool(gameObject);
             }
         }
 
