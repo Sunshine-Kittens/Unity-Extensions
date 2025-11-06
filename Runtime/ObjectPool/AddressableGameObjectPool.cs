@@ -16,7 +16,7 @@ namespace UnityEngine.Extension
         
         public async Awaitable<GameObject> Get(Vector3 position, Quaternion rotation, Transform parent = null)
         {
-            if (_assetHandle.Result == null)
+            if (!_assetHandle.IsValid())
             {
                 _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
                 await _assetHandle.Task;
