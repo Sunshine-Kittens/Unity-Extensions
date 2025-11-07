@@ -7,64 +7,135 @@ namespace UnityEngine.Extension
 {
     public static class UpdateManager
     {
-        private class ManagedUpdatePlayerLoopSystem : IPlayerLoopSystem
+        private abstract class ManagedUpdateLoopSystemBase<T> : IPlayerLoopSystem where T : IManagedObject
         {
             public EntryPointLocation Location => EntryPointLocation.Before;
             public Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
 
-            public readonly HashSet<IUpdatable> Set = new HashSet<IUpdatable>();
+            private readonly List<T> _items = new List<T>();
+            private readonly Dictionary<T, int> _indexMap = new Dictionary<T, int>();
 
-            public ManagedUpdatePlayerLoopSystem() { }
+            private readonly List<T> _deferredRemovals = new List<T>();
+            private readonly HashSet<T> _deferredRemovalSet = new HashSet<T>();
 
+            private bool _isIterating = false;
+
+            public ManagedUpdateLoopSystemBase() { }
+            
+            public bool Contains(T item) => item != null && _indexMap.ContainsKey(item);
+            public int Count => _items.Count;
+            public T[] ToArray() => _items.ToArray();
+            
+            protected abstract void CallUpdate(T item);
+            
             public void Update()
             {
-                foreach (IUpdatable updatable in Set)
+                _isIterating = true;
+                try
                 {
-                    if (updatable.Active)
+                    for (int i = 0; i < _items.Count; ++i)
                     {
-                        updatable.ManagedUpdate();
-                    }                    
+                        T item = _items[i];
+                        CallUpdate(item);
+                    }
                 }
+                finally
+                {
+                    _isIterating = false;
+                }
+                
+                if (_deferredRemovals.Count > 0)
+                {
+                    for (int i = 0; i < _deferredRemovals.Count; ++i)
+                    {
+                        Remove(_deferredRemovals[i]);
+                    }
+                    _deferredRemovals.Clear();
+                    _deferredRemovalSet.Clear();
+                }
+            }
+            
+            public void Add(T item)
+            {
+                if (item == null) throw new ArgumentNullException(nameof(item));
+                if (_indexMap.ContainsKey(item)) return;
+                
+                if (_deferredRemovalSet.Contains(item))
+                {
+                    _deferredRemovalSet.Remove(item);
+                    int last = _deferredRemovals.Count - 1;
+                    for (int i = 0; i <= last; ++i)
+                    {
+                        if (EqualityComparer<T>.Default.Equals(_deferredRemovals[i], item))
+                        {
+                            if (i != last)
+                                _deferredRemovals[i] = _deferredRemovals[last];
+                            _deferredRemovals.RemoveAt(last);
+                            break;
+                        }
+                    }
+                }
+                int index = _items.Count;
+                _items.Add(item);
+                _indexMap[item] = index;
+            }
+            
+            public bool Remove(T item)
+            {
+                if (_isIterating)
+                    return DeferRemoval(item);
+                return RemoveImmediate(item);
+            }
+            
+            private bool RemoveImmediate(T item)
+            {
+                if (item == null) return false;
+                if (!_indexMap.TryGetValue(item, out int index)) return false;
+
+                int last = _items.Count - 1;
+                T lastItem = _items[last];
+                
+                if (index != last)
+                {
+                    _items[index] = lastItem;
+                    _indexMap[lastItem] = index;
+                }
+                
+                _items.RemoveAt(last);
+                _indexMap.Remove(item);
+                return true;
+            }
+            
+            private bool DeferRemoval(T item)
+            {
+                if (item == null || !_deferredRemovalSet.Add(item)) 
+                    return false;
+                _deferredRemovals.Add(item);
+                return true;
             }
         }
 
-        private class ManagedLateUpdatePlayerLoopSystem : IPlayerLoopSystem
+        private class ManagedUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<IUpdatable>
         {
-            public readonly HashSet<ILateUpdatable> Set = new HashSet<ILateUpdatable>();
-            public EntryPointLocation Location => EntryPointLocation.Before;
-            public Type EntryPoint => typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate);
-
-            public ManagedLateUpdatePlayerLoopSystem() { }
-
-            public void Update()
+            protected override void CallUpdate(IUpdatable item)
             {
-                foreach (ILateUpdatable updatable in Set)
-                {
-                    if (updatable.Active)
-                    {
-                        updatable.ManagedLateUpdate();
-                    }
-                }
+                item.ManagedUpdate();
             }
         }
 
-        private class ManagedFixedUpdatePlayerLoopSystem : IPlayerLoopSystem
+        private class ManagedLateUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<ILateUpdatable>
         {
-            public readonly HashSet<IFixedUpdatable> Set = new HashSet<IFixedUpdatable>();
-            public EntryPointLocation Location => EntryPointLocation.Before;
-            public Type EntryPoint => typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate);
-
-            public ManagedFixedUpdatePlayerLoopSystem() { }
-
-            public void Update()
+            protected override void CallUpdate(ILateUpdatable item)
             {
-                foreach (IFixedUpdatable updatable in Set)
-                {
-                    if (updatable.Active)
-                    {
-                        updatable.ManagedFixedUpdate();
-                    }
-                }
+                item.ManagedLateUpdate();
+            }
+        }
+
+        private class ManagedFixedUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<IFixedUpdatable>
+        {
+            protected override void CallUpdate(IFixedUpdatable item)
+            {
+                item.ManagedFixedUpdate();
             }
         }
 
@@ -74,40 +145,37 @@ namespace UnityEngine.Extension
         private static ManagedLateUpdatePlayerLoopSystem _lateUpdatablesPlayerLoopSystem = new ManagedLateUpdatePlayerLoopSystem();
         public static IPlayerLoopSystem FixedUpdatablesPlayerLoopSystem => _fixedUpdatablesPlayerLoopSystem;
         private static ManagedFixedUpdatePlayerLoopSystem _fixedUpdatablesPlayerLoopSystem = new ManagedFixedUpdatePlayerLoopSystem();
-        
-        static UpdateManager()
-        {
 
-        }
+        static UpdateManager() { }
 
         public static void AddUpdatable(IUpdatable updatable)
         {
-            _updatablesPlayerLoopSystem.Set.Add(updatable);
+            _updatablesPlayerLoopSystem.Add(updatable);
         }
 
         public static void RemoveUpdatable(IUpdatable updatable)
         {
-            _updatablesPlayerLoopSystem.Set.Remove(updatable);
+            _updatablesPlayerLoopSystem.Remove(updatable);
         }
 
         public static void AddLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            _lateUpdatablesPlayerLoopSystem.Set.Add(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.Add(lateUpdatable);
         }
 
         public static void RemoveLateUpdatable(ILateUpdatable lateUpdatable)
         {
-            _lateUpdatablesPlayerLoopSystem.Set.Remove(lateUpdatable);
+            _lateUpdatablesPlayerLoopSystem.Remove(lateUpdatable);
         }
 
         public static void AddFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            _fixedUpdatablesPlayerLoopSystem.Set.Add(fixedUpdatable);
+            _fixedUpdatablesPlayerLoopSystem.Add(fixedUpdatable);
         }
 
         public static void RemoveFixedUpdatable(IFixedUpdatable fixedUpdatable)
         {
-            _fixedUpdatablesPlayerLoopSystem.Set.Remove(fixedUpdatable);
+            _fixedUpdatablesPlayerLoopSystem.Remove(fixedUpdatable);
         }
     }
 }
