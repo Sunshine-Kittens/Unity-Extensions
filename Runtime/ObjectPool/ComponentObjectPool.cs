@@ -11,6 +11,37 @@ namespace UnityEngine.Extension
 
         private readonly Dictionary<GameObject, T> _componentMap;
 
+        public IEnumerable<T> AllComponents
+        {
+            get
+            {
+                foreach (var pair in _componentMap)
+                    yield return pair.Value;
+            }
+        }
+        
+        public IEnumerable<T> ActiveComponents
+        {
+            get
+            {
+                for (int i = ActiveObjects.Count - 1; i >= 0; i--)
+                {
+                    yield return _componentMap[ActiveObjects[i]];   
+                }
+            }
+        }
+        
+        public IEnumerable<T> InactiveComponents
+        {
+            get
+            {
+                for (int i = InactiveObjects.Count - 1; i >= 0; i--)
+                {
+                    yield return _componentMap[InactiveObjects[i]];   
+                }
+            }
+        }
+        
         public ComponentObjectPool() : base()
         {
             _componentMap = new ();
@@ -24,11 +55,14 @@ namespace UnityEngine.Extension
         public ComponentObjectPool(T template, int capacity) : base(capacity)
         {
             _template = template;
+            _componentMap = new (capacity);
         }
 
-        public T Get()
+        public T Get(Action<T> onInstantiate = null)
         {
-            GameObject gameObject = Get(_template.gameObject);
+            GameObject gameObject = Get(_template.gameObject, 
+                gameObject => onInstantiate?.Invoke(_componentMap[gameObject])
+            );
             return _componentMap[gameObject];
         }
 

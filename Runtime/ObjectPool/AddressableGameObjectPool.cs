@@ -1,4 +1,6 @@
 #if UNITY_ADDRESSABLES
+using System;
+
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
@@ -14,14 +16,14 @@ namespace UnityEngine.Extension
             _address = address;
         }
         
-        public async Awaitable<GameObject> Get(Vector3 position, Quaternion rotation, Transform parent = null)
+        public async Awaitable<GameObject> Get(Vector3 position, Quaternion rotation, Transform parent = null, Action<GameObject> onInstantiate = null)
         {
             if (!_assetHandle.IsValid())
             {
                 _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
                 await _assetHandle.Task;
             }
-            GameObject gameObject = Get(_assetHandle.Result);
+            GameObject gameObject = Get(_assetHandle.Result, onInstantiate);
             gameObject.transform.position = position;
             gameObject.transform.rotation = rotation;
             gameObject.transform.SetParent(parent);

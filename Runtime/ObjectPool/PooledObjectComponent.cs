@@ -4,6 +4,7 @@ namespace UnityEngine.Extension
 {
     public class PooledObjectComponent : MonoBehaviour, IPooledObjectHandle
     {
+        private bool _pendingDestroy = false;
         private IObjectPool _owningPool = null;
 
         public void Init(IObjectPool owningPool)
@@ -24,12 +25,22 @@ namespace UnityEngine.Extension
 
         public void DestroyFromPool()
         {
-            if (_owningPool != null)
+            if (!_pendingDestroy && _owningPool != null)
             {
+                _pendingDestroy = true;
                 _owningPool.DestroyFromPool(gameObject);
             }
         }
 
+        public void Destroy()
+        {
+            if (!_pendingDestroy)
+            {
+                _pendingDestroy = true;
+                Destroy(gameObject);
+            }
+        }
+        
         protected virtual void OnDestroy()
         {
             DestroyFromPool();
