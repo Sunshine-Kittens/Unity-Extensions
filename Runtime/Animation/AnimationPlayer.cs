@@ -13,6 +13,8 @@ namespace UnityEngine.Extension
     {
         public readonly struct PlaybackData
         {
+            public EasingMode EasingMode => _player == null ? 0.0F : _player.EasingMode;
+            public float PlaybackSpeed => _player == null ? 0.0F : _player.PlaybackSpeed;
             public float CurrentTime => _player == null ? 0.0F : _player.CurrentTime;
             public float CurrentNormalisedTime => _player == null ? 0.0F : _player.CurrentNormalisedTime;
             public float Length => _player == null ? 0.0F : _player.Length;

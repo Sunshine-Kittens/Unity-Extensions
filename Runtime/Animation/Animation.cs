@@ -52,6 +52,12 @@ namespace UnityEngine.Extension
             return new AnimationPlayable(animation, startTime, playbackMode, easingMode, timeMode, animation.Length / length);
         }
         
+        public static AnimationPlayable Playable(this IAnimation animation, float length, in AnimationPlaybackParams playbackParams)
+        {
+            return new AnimationPlayable(animation, playbackParams.StartTime, playbackParams.PlaybackMode, playbackParams.EasingMode, 
+                playbackParams.TimeMode, animation.Length / length);
+        }
+        
         public static AnimationPlayable Playable(this IAnimation animation, in AnimationPlaybackParams playbackParams)
         {
             return new AnimationPlayable(animation, playbackParams);
