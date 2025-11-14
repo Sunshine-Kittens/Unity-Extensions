@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 using UnityEngine.Extension;
@@ -10,6 +11,11 @@ namespace UnityEditor.Extension
     {
         private SerializedProperty _unityObjectProperty = null;
 
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            return EditorGUIUtility.singleLineHeight;
+        }
+        
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             _unityObjectProperty = property.FindPropertyRelative("_unityObject");
@@ -24,33 +30,28 @@ namespace UnityEditor.Extension
             {
                 throw new InvalidOperationException("Generic argument for interface reference is not an interface.");
             }
-
-            Type[] genericArguments = fieldInfo.FieldType.GetGenericArguments();
+            
             string typeName = property.displayName + " <";
-            for (int i = 0; i < genericArguments.Length; i++)
+            string genericArgName = interfaceType.Name;
+            if (interfaceType.GenericTypeArguments.Length > 0)
             {
-                string genericArgName = genericArguments[i].Name;
-                if (genericArguments[i].GenericTypeArguments.Length > 0)
+                genericArgName += "<";
+                for (int j = 0; j < interfaceType.GenericTypeArguments.Length; j++)
                 {
-                    genericArgName = genericArgName.Remove(genericArgName.Length - 2);
-                    genericArgName += "<";
-                    for (int j = 0; j < genericArguments[i].GenericTypeArguments.Length; j++)
+                    genericArgName += interfaceType.GenericTypeArguments[j].Name;
+                    if (j < interfaceType.GenericTypeArguments.Length - 1)
                     {
-                        genericArgName += genericArguments[i].GenericTypeArguments[j].Name;
-                        if (j < genericArguments[i].GenericTypeArguments.Length - 1)
-                        {
-                            genericArgName += ",";
-                        }
+                        genericArgName += ",";
                     }
-                    genericArgName += ">";
                 }
-                typeName += genericArgName;
+                genericArgName += ">";   
             }
+            typeName += genericArgName;
             typeName += ">";
             label = new GUIContent(typeName);
 
             EditorGUI.BeginChangeCheck();
-            UnityEngine.Object obj = EditorGUILayout.ObjectField(label, _unityObjectProperty.objectReferenceValue, typeof(UnityEngine.Object), true);
+            UnityEngine.Object obj = EditorGUI.ObjectField(position, label, _unityObjectProperty.objectReferenceValue, typeof(UnityEngine.Object), true);
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -76,8 +77,35 @@ namespace UnityEditor.Extension
 
         Type GetInterfaceType()
         {
-            Type[] genericArguments = fieldInfo.FieldType.GetGenericArguments();
-            return genericArguments[0];
+            Type interfaceRefType = fieldInfo.FieldType;
+            if (interfaceRefType.IsArray)
+            {
+                interfaceRefType = interfaceRefType.GetElementType();    
+            }
+            else if (interfaceRefType.IsGenericType)
+            {
+                if (interfaceRefType.GetGenericTypeDefinition() == typeof(IList<>))
+                {
+                    interfaceRefType = interfaceRefType.GetGenericArguments()[0];
+                }
+                else
+                {
+                    foreach (Type @interface in interfaceRefType.GetInterfaces())
+                    {
+                        if (@interface.IsGenericType && @interface.GetGenericTypeDefinition() == typeof(IList<>))
+                        {
+                            interfaceRefType = @interface.GetGenericArguments()[0];
+                        }
+                    }   
+                }
+            }
+
+            if (interfaceRefType != null && interfaceRefType.IsGenericType)
+            {
+                Type[] genericArguments = interfaceRefType.GetGenericArguments();
+                return genericArguments[0];
+            }
+            return null;
         }
     }
 }

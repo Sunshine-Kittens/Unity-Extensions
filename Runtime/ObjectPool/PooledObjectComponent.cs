@@ -4,44 +4,44 @@ namespace UnityEngine.Extension
 {
     public class PooledObjectComponent : MonoBehaviour, IPooledObjectHandle
     {
-        private Component _owningObject = null;
-        private ObjectPool _owningPool = null;
+        private bool _pendingDestroy = false;
+        private IObjectPool _owningPool = null;
 
-        public void Init(Component owningObject, ObjectPool owningPool)
+        public void Init(IObjectPool owningPool)
         {
-            _owningObject = owningObject;
-            _owningPool = owningPool;
+            _owningPool = owningPool ?? throw new ArgumentNullException(nameof(owningPool));
         }
 
-        public void DeactivateToPool()
+        public void ReturnToPool()
         {
-            if (_owningPool == null)
+            if (_owningPool != null)
             {
-                throw new InvalidOperationException("Owning pool is invalid.");
+                OnReturnToPool();
+                _owningPool.ReturnToPool(gameObject);
             }
-
-            if (_owningObject == null)
-            {
-                throw new InvalidOperationException("Owning object is invalid.");
-            }
-            _owningPool.ReturnToPool(_owningObject);
         }
+
+        protected virtual void OnReturnToPool() { }
 
         public void DestroyFromPool()
         {
-            if (_owningPool == null)
+            if (!_pendingDestroy && _owningPool != null)
             {
-                throw new InvalidOperationException("Owning pool is invalid.");
+                _pendingDestroy = true;
+                _owningPool.DestroyFromPool(gameObject);
             }
-
-            if (_owningObject == null)
-            {
-                throw new InvalidOperationException("Owning object is invalid.");
-            }
-            _owningPool.DestroyFromPool(_owningObject);
         }
 
-        private void OnDestroy()
+        public void Destroy()
+        {
+            if (!_pendingDestroy)
+            {
+                _pendingDestroy = true;
+                Destroy(gameObject);
+            }
+        }
+        
+        protected virtual void OnDestroy()
         {
             DestroyFromPool();
         }

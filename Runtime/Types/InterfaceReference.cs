@@ -11,11 +11,11 @@ namespace UnityEngine.Extension
         private Type _interfaceType = typeof(T);
         private Type _objectType = null;
 
-        private object _object { get { return _systemObject != null ? _systemObject : _unityObject; } }
+        private object _object => _systemObject ?? _unityObject;
 
-        public T Value { get { return _object as T; } }
+        public T Value => _object as T;
 
-        public bool HasValue { get { return Value != null; } }
+        public bool HasValue => Value != null;
 
         private InterfaceReference() { }
 
@@ -30,7 +30,7 @@ namespace UnityEngine.Extension
 
             if (!_interfaceType.IsInterface)
             {
-                throw new InvalidOperationException(string.Format("T {0}, is not an interface.", _interfaceType.Name));
+                throw new InvalidOperationException($"T {_interfaceType.Name}, is not an interface.");
             }
 
             _objectType = interfaceReference.GetType();
@@ -48,14 +48,14 @@ namespace UnityEngine.Extension
 
             if (!_interfaceType.IsInterface)
             {
-                throw new InvalidOperationException(string.Format("T {0}, is not an interface.", _interfaceType.Name));
+                throw new InvalidOperationException($"T {_interfaceType.Name}, is not an interface.");
             }
 
             _objectType = objectReference.GetType();
 
             if (!_interfaceType.IsAssignableFrom(_objectType))
             {
-                throw new InvalidOperationException(string.Format("object {0} does not implement interface T {1}.", _objectType.Name, _interfaceType.Name));
+                throw new InvalidOperationException($"object {_objectType.Name} does not implement interface T {_interfaceType.Name}.");
             }
 
             _systemObject = objectReference;
@@ -132,7 +132,7 @@ namespace UnityEngine.Extension
         public T GetValueOrDefault(T defaultValue)
         {
             T ret = Value;
-            return ret != null ? ret : defaultValue;
+            return ret ?? defaultValue;
         }
     }
 }
