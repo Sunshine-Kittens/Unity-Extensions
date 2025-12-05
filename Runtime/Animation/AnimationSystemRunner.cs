@@ -55,11 +55,23 @@ namespace UnityEngine.Extension
             for (int i = _playerList.Count - 1; i >= 0; i--)
             {
                 AnimationPlayer player = _playerList[i];
-                player.Update();
-                if (!player.IsPlaying)
+                bool exceptionCaught = false;
+                try
                 {
-                    _playerList.RemoveAt(i);
-                    _playerHashSet.Remove(player);
+                    player.Update();
+                }
+                catch (System.Exception e)
+                {
+                    Debug.Log($"Player for {player.Animation.GetType().Name} removed as an exception has been caught during update: {e.Message}");
+                    exceptionCaught = true;
+                }
+                finally
+                {
+                    if (!player.IsPlaying || exceptionCaught)
+                    {
+                        _playerList.RemoveAt(i);
+                        _playerHashSet.Remove(player);
+                    }
                 }
             }
         }
