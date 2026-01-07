@@ -36,7 +36,10 @@ namespace UnityEngine.Extension
                     for (int i = 0; i < _items.Count; ++i)
                     {
                         T item = _items[i];
-                        CallUpdate(item);
+                        if (item.Active)
+                        {
+                            CallUpdate(item);   
+                        }
                     }
                 }
                 finally
