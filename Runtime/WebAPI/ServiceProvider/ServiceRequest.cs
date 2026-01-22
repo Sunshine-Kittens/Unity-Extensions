@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace UnityEngine.Extension.WebAPI
@@ -16,7 +17,7 @@ namespace UnityEngine.Extension.WebAPI
 
         protected abstract TServiceResponse CreateResponse(IHttpResponse httpResponse);
         
-        public async ValueTask<TServiceResponse> Send()
+        public async ValueTask<TServiceResponse> Send(CancellationToken cancellationToken = default)
         {
             HttpRequest request = ServiceProvider.CreateRequest(Method, ResourcePath);
             PopulateRequest(request);
@@ -25,7 +26,7 @@ namespace UnityEngine.Extension.WebAPI
             TServiceResponse serviceResponse = null;
             try
             {
-                httpResponse = await HttpClient.Instance.Send(request);
+                httpResponse = await HttpClient.Instance.Send(request, cancellationToken);
                 serviceResponse = CreateResponse(httpResponse);
                 try
                 {
