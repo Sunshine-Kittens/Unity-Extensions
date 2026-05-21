@@ -11,7 +11,7 @@ namespace UnityEngine.Extension
         public readonly float PlaybackSpeed;
         public readonly TimeMode TimeMode;
         
-        public AnimationPlayable(IAnimation animation, in  AnimationPlaybackParams playbackParams)
+        public AnimationPlayable(IAnimation animation, in AnimationPlaybackParams playbackParams)
         {
             Animation = animation ?? throw new ArgumentNullException(nameof(animation));
             EasingMode = playbackParams.EasingMode;
@@ -32,6 +32,11 @@ namespace UnityEngine.Extension
             PlaybackSpeed = playbackSpeed;
         }
 
+        public bool IsValid()
+        {
+            return Animation != null;
+        }
+        
         public AnimationPlayable CreateInverse()
         {
             return new AnimationPlayable(Animation, Animation.Length - StartTime, PlaybackMode.Invert(), EasingMode.GetInverseEasingMode(), TimeMode, PlaybackSpeed);

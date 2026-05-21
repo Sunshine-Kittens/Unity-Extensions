@@ -32,48 +32,15 @@ namespace UnityEngine.Extension
         {
             return new AnimationPlaybackParams(startTime, playbackMode, easingMode, timeMode, playbackSpeed);
         }
-
-        public static AnimationPlaybackParams PlaybackParams(this IAnimation animation, float length, float startTime = 0.0F, 
-            PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, 
-            TimeMode timeMode = TimeMode.Scaled)
+        
+        public static AnimationPlayableBuilder ToPlayable(this IAnimation animation)
         {
-            return new AnimationPlaybackParams(startTime, playbackMode, easingMode, timeMode, animation.Length / length);
+            return new AnimationPlayableBuilder(animation);
         }
         
-        public static AnimationPlayable Playable(this IAnimation animation, float startTime = 0.0F, PlaybackMode playbackMode = PlaybackMode.Forward, 
-            EasingMode easingMode = EasingMode.Linear, TimeMode timeMode = TimeMode.Scaled, float playbackSpeed = 1.0F)
+        public static AnimationPlayableBuilder ToPlayable(this AnimationClip animationClip, GameObject gameObject)
         {
-            return new AnimationPlayable(animation, startTime, playbackMode, easingMode, timeMode, playbackSpeed);
-        }
-        
-        public static AnimationPlayable Playable(this IAnimation animation, float length, float startTime = 0.0F, 
-            PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, TimeMode timeMode = TimeMode.Scaled)
-        {
-            return new AnimationPlayable(animation, startTime, playbackMode, easingMode, timeMode, animation.Length / length);
-        }
-        
-        public static AnimationPlayable Playable(this IAnimation animation, float length, in AnimationPlaybackParams playbackParams)
-        {
-            return new AnimationPlayable(animation, playbackParams.StartTime, playbackParams.PlaybackMode, playbackParams.EasingMode, 
-                playbackParams.TimeMode, animation.Length / length);
-        }
-        
-        public static AnimationPlayable Playable(this IAnimation animation, in AnimationPlaybackParams playbackParams)
-        {
-            return new AnimationPlayable(animation, playbackParams);
-        }
-        
-        public static AnimationPlayable Playable(this AnimationClip animationClip, GameObject gameObject, float startTime = 0.0F, 
-            PlaybackMode playbackMode = PlaybackMode.Forward, EasingMode easingMode = EasingMode.Linear, TimeMode timeMode = TimeMode.Scaled, 
-            float playbackSpeed = 1.0F)
-        {
-            return new AnimationPlayable(new UnityAnimationClipAnimation(gameObject, animationClip), startTime, playbackMode, easingMode, timeMode, 
-                playbackSpeed);
-        }
-        
-        public static AnimationPlayable Playable(this AnimationClip animationClip, GameObject gameObject, in AnimationPlaybackParams playbackParams)
-        {
-            return new AnimationPlayable(new UnityAnimationClipAnimation(gameObject, animationClip), in  playbackParams);
+            return new AnimationPlayableBuilder(new UnityAnimationClipAnimation(gameObject, animationClip));
         }
         
         public static PlaybackMode Invert(this PlaybackMode playbackMode)

@@ -9,7 +9,8 @@
   "licensesUrl": "https://example.com/licensing.html",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "com.unity.addressables": "2.7.4"
+    "com.unity.addressables": "2.7.4",
+    "com.unity.burst": "1.6.0"
   },
  "keywords": [
     "engine",

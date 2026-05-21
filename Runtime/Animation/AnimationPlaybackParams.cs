@@ -2,7 +2,7 @@ using System;
 
 namespace UnityEngine.Extension
 {
-    public readonly struct AnimationPlaybackParams
+    public readonly ref struct AnimationPlaybackParams
     {
         public readonly float StartTime;
         public readonly PlaybackMode PlaybackMode;
