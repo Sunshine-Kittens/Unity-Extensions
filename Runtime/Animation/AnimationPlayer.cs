@@ -173,7 +173,7 @@ namespace UnityEngine.Extension
                 if (isAtEnd)
                 {
                     IsPlaying = false;
-                    OnComplete.Invoke(Animation);
+                    OnComplete?.Invoke(Animation);
                 }
                 return true;
             }
@@ -189,7 +189,7 @@ namespace UnityEngine.Extension
                 EvaluateAnimation();
 
                 IsPlaying = false;
-                OnComplete.Invoke(Animation);
+                OnComplete?.Invoke(Animation);
                 return true;
             }
             return false;
@@ -219,7 +219,7 @@ namespace UnityEngine.Extension
                 if (isAtEnd)
                 {
                     IsPlaying = false;
-                    OnComplete.Invoke(Animation);
+                    OnComplete?.Invoke(Animation);
                 }
             }
         }
