@@ -12,7 +12,7 @@ namespace UnityEngine.Extension
         private abstract class ManagedUpdateLoopSystemBase<T> : IPlayerLoopSystem where T : IManagedObject
         {
             public EntryPointLocation Location => EntryPointLocation.Before;
-            public Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
+            public abstract Type EntryPoint { get; }
 
             private readonly List<T> _items = new List<T>();
             private readonly Dictionary<T, int> _indexMap = new Dictionary<T, int>();
@@ -227,6 +227,8 @@ namespace UnityEngine.Extension
 
         private class ManagedUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<IUpdatable>
         {
+            public override Type EntryPoint => typeof(Update.ScriptRunBehaviourUpdate);
+
             protected override void CallUpdate(IUpdatable item)
             {
                 item.ManagedUpdate();
@@ -235,6 +237,8 @@ namespace UnityEngine.Extension
 
         private class ManagedLateUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<ILateUpdatable>
         {
+            public override Type EntryPoint => typeof(PreLateUpdate.ScriptRunBehaviourLateUpdate);
+
             protected override void CallUpdate(ILateUpdatable item)
             {
                 item.ManagedLateUpdate();
@@ -243,6 +247,8 @@ namespace UnityEngine.Extension
 
         private class ManagedFixedUpdatePlayerLoopSystem : ManagedUpdateLoopSystemBase<IFixedUpdatable>
         {
+            public override Type EntryPoint => typeof(FixedUpdate.ScriptRunBehaviourFixedUpdate);
+
             protected override void CallUpdate(IFixedUpdatable item)
             {
                 item.ManagedFixedUpdate();
