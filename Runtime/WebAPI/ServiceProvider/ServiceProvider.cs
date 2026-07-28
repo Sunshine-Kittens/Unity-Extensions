@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 
 namespace UnityEngine.Extension.WebAPI
 {
@@ -39,6 +38,10 @@ namespace UnityEngine.Extension.WebAPI
                 _activeEnvironment = environment;
                 return true;
             }
+            //Callers routinely discard the return value, so an unknown key would otherwise leave the provider
+            //silently pointing at the default environment for the lifetime of the process.
+            Debug.LogError($"[{typeof(TServiceType).Name}] Unknown environment '{environment}'. " +
+                $"Staying on '{_activeEnvironment}'. Known environments: {string.Join(", ", _environments.Keys)}.");
             return false;
         }
 
@@ -71,8 +74,17 @@ namespace UnityEngine.Extension.WebAPI
 
         private static string BuildUrl(string baseUrl, string resourcePath)
         {
-            //Replace '\' by '/' to unify separators used in the URL and make sure it is compatible with all platforms.
-            return Path.Combine(baseUrl, resourcePath).Replace('\\', '/');
+            if (string.IsNullOrEmpty(resourcePath))
+            {
+                return baseUrl;
+            }
+            if (string.IsNullOrEmpty(baseUrl))
+            {
+                return resourcePath;
+            }
+            //Join with exactly one separator. Path.Combine must not be used here: it is platform dependent
+            //and it discards the base url entirely when the resource path is rooted, e.g. "/graph/invitations".
+            return $"{baseUrl.TrimEnd('/', '\\')}/{resourcePath.TrimStart('/', '\\')}";
         }
     }
 }

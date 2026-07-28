@@ -26,15 +26,8 @@ namespace UnityEngine.Extension.WebAPI
         {
             try
             {
-                string contentType;
-                if (TryGetContentType(self, out contentType))
-                {
-                    Encoding encoding = GetTextEncoder(contentType);
-                    dataString = encoding.GetString(self.Body.Data);
-                    return true;
-                }
-                dataString = null;
-                return false;
+                dataString = GetStringFromData(self);
+                return true;
             }
             catch
             {
@@ -45,13 +38,16 @@ namespace UnityEngine.Extension.WebAPI
 
         public static string GetStringFromData(this IHttpResponse self)
         {
-            Encoding encoding = GetTextEncoder(GetContentType(self));
-            return encoding.GetString(self.Body.Data);
+            //A missing Content-Type is not an error. Servers omit it on 204s and on some error responses,
+            //so fall back to UTF-8 rather than refusing to read a body that is sitting right there.
+            TryGetContentType(self, out string contentType);
+            return GetTextEncoder(contentType).GetString(self.Body.Data);
         }
 
         public static bool TryGetContentType(this IHttpResponse self, out string contentType)
         {
-            return self.Headers.TryGetValue("Content-Type", out contentType);
+            contentType = null;
+            return self.Headers != null && self.Headers.TryGetValue("Content-Type", out contentType);
         }
 
         public static string GetContentType(this IHttpResponse self)
@@ -61,56 +57,51 @@ namespace UnityEngine.Extension.WebAPI
 
         public static bool TryGetJsonFromData(this IHttpResponse self, out JObject jsonObject)
         {
-            if (TryGetContentType(self, out string contentType))
+            try
             {
-                Encoding encoding = GetTextEncoder(contentType);
-                try
-                {
-                    jsonObject = JObject.Parse(encoding.GetString(self.Body.Data));
-                    return true;
-                }
-                catch(JsonException)
-                {
-                    jsonObject = null;
-                    return false;
-                }
+                jsonObject = GetJsonFromData(self);
+                return jsonObject != null;
             }
-            jsonObject = null;
-            return false;
+            catch (JsonException)
+            {
+                jsonObject = null;
+                return false;
+            }
         }
-        
+
         public static JObject GetJsonFromData(this IHttpResponse self)
         {
-            if (!TryGetContentType(self, out string contentType)) throw new InvalidOperationException("Unable to get json without valid content type.");
-            Encoding encoding = GetTextEncoder(contentType);
-            return JObject.Parse(encoding.GetString(self.Body.Data));
+            string body = GetStringFromData(self);
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return null;
+            }
+            return JObject.Parse(body);
         }
 
         public static bool TryJsonDeserializeFromData<T>(this IHttpResponse self, out T result)
         {
-            if (TryGetContentType(self, out string contentType))
+            try
             {
-                Encoding encoding = GetTextEncoder(contentType);
-                try
-                {
-                    result = JsonConvert.DeserializeObject<T>(encoding.GetString(self.Body.Data));
-                    return true;
-                }
-                catch(JsonException)
-                {
-                    result = default;
-                    return false;
-                }
+                result = JsonDeserializeFromData<T>(self);
+                return true;
             }
-            result = default;
-            return false;
+            catch (JsonException)
+            {
+                result = default;
+                return false;
+            }
         }
-        
+
         public static T JsonDeserializeFromData<T>(this IHttpResponse self)
         {
-            if (!TryGetContentType(self, out string contentType)) throw new InvalidOperationException("Unable to json deserialize without valid content type.");
-            Encoding encoding = GetTextEncoder(contentType);
-            return JsonConvert.DeserializeObject<T>(encoding.GetString(self.Body.Data));
+            string body = GetStringFromData(self);
+            //An empty body (204 No Content, or an endpoint that returns nothing) yields default rather than throwing.
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return default;
+            }
+            return JsonConvert.DeserializeObject<T>(body);
         }
 
         private static Encoding GetTextEncoder(string contentType)

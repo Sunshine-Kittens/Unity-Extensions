@@ -175,9 +175,15 @@ namespace UnityEngine.Extension.WebAPI
             UnityWebRequest webRequest = new UnityWebRequest(httpRequest.Url, httpRequest.Method)
             {
                 downloadHandler = new DownloadHandlerBuffer(),
-                redirectLimit = httpRequest.Options.RedirectLimit,
                 timeout = httpRequest.Options.RequestTimeoutInSeconds
             };
+
+            //A redirect limit of 0 disables redirect following outright, which is never what a
+            //default-constructed HttpOptions means. Treat 0 as "keep the UnityWebRequest default".
+            if (httpRequest.Options.RedirectLimit > 0)
+            {
+                webRequest.redirectLimit = httpRequest.Options.RedirectLimit;
+            }
 
             if (httpRequest.Body != null && httpRequest.Body.Length > 0)
             {
