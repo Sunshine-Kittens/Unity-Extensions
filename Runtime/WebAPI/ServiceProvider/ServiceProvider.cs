@@ -17,13 +17,17 @@ namespace UnityEngine.Extension.WebAPI
         }
         private static TServiceType _instance = null;
 
-        private ServiceProvider() { }
-
         public ServiceProvider(string defaultEnvironment, Dictionary<string, ServiceProviderEnvironment> environments)
         {
             _activeEnvironment = defaultEnvironment;
             _environments = environments;
         }
+
+        /// <summary>
+        /// Applies authentication to every request this provider sends. Null leaves requests
+        /// unauthenticated. Awaited during send, so implementations may refresh credentials.
+        /// </summary>
+        public IRequestAuthenticator Authenticator { get; set; }
 
         private string _activeEnvironment;
         private Dictionary<string, ServiceProviderEnvironment> _environments;
@@ -65,12 +69,20 @@ namespace UnityEngine.Extension.WebAPI
             return default;
         }
         
-        public virtual HttpRequest CreateRequest(HttpMethod method, string resourcePath)
+        public virtual HttpRequest CreateRequest(HttpVerb method, string resourcePath)
         {
             string url = BuildUrl(GetUrl(), resourcePath);
             HttpRequest request = new HttpRequest(method, url, GetDefaultOptions());
+            ApplyDefaults(request);
             return request;
         }
+
+        /// <summary>
+        /// Hook for provider-wide request defaults. Runs on every request before it is populated by
+        /// the <see cref="ServiceRequest{TServiceProvider, TServiceResponse}"/>. Synchronous by
+        /// design — anything that needs to await belongs on <see cref="Authenticator"/>.
+        /// </summary>
+        protected virtual void ApplyDefaults(HttpRequest request) { }
 
         private static string BuildUrl(string baseUrl, string resourcePath)
         {

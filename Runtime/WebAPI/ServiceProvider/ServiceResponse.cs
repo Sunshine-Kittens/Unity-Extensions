@@ -25,17 +25,32 @@ namespace UnityEngine.Extension.WebAPI
         private readonly IHttpResponse _httpResponse;
         private bool _disposed;
 
-        private ServiceResponse() { }
-
         protected ServiceResponse(IHttpResponse httpResponse)
         {
             _httpResponse = httpResponse ?? throw new ArgumentNullException(nameof(httpResponse));
         }
 
-        public abstract bool ProcessResponse();
+        /// <summary>True once the response body has been received and processed.</summary>
+        public bool IsBodyProcessed { get; private set; }
 
+        /// <summary>
+        /// Inspects the response headers and status. Runs as soon as the headers arrive, before the
+        /// body. Return false to reject the response.
+        /// </summary>
+        public virtual bool ProcessResponse() => true;
+
+        /// <summary>
+        /// Waits for the body to arrive and processes it. Idempotent — sending with
+        /// <see cref="HttpCompletionOption.ResponseContentRead"/> already drove this, so calling it
+        /// again is a no-op rather than a second parse.
+        /// </summary>
         public async ValueTask ProcessBodyDataAsync(CancellationToken cancellationToken = default)
         {
+            if (IsBodyProcessed)
+            {
+                return;
+            }
+
             await _httpResponse.Body.WaitForCompletionAsync(cancellationToken);
             try
             {
@@ -44,13 +59,18 @@ namespace UnityEngine.Extension.WebAPI
                     throw new HttpResponseException(HttpResponseError.DataProcessingError);
                 }
             }
-            catch (Exception exception)
+            catch (Exception exception) when (exception is not HttpResponseException)
             {
                 throw new HttpResponseException(HttpResponseError.DataProcessingError, exception.Message, exception);
             }
+            IsBodyProcessed = true;
         }
-        
-        protected abstract bool ProcessBodyData();
+
+        /// <summary>
+        /// Deserialises the body. Defaults to a no-op so that responses carrying no content need not
+        /// override it. Return false to reject the body.
+        /// </summary>
+        protected virtual bool ProcessBodyData() => true;
 
         public void Dispose()
         {

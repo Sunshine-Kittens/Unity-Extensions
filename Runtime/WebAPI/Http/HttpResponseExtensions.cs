@@ -18,7 +18,7 @@ namespace UnityEngine.Extension.WebAPI
         {
             if (!IsSuccessStatusCode(self))
             {
-                throw new HttpRequestException(HttpRequestError.ProtocolError, self.StatusCode);
+                throw new HttpTransportException(HttpRequestError.ProtocolError, self.StatusCode);
             }
         }
         

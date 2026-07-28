@@ -12,6 +12,8 @@ namespace UnityEngine.Extension.WebAPI
         private sealed class UnitWebRequestResponse : IHttpResponse, IHttpResponseBody
         {
             // Response
+            //GetResponseHeaders already returns a case-insensitive dictionary, so mixed-case lookups
+            //("Content-Type" here, "etag" in SKServiceResponse) resolve correctly without re-keying.
             public IReadOnlyDictionary<string, string> Headers => _webRequest.GetResponseHeaders();
             public long StatusCode => _webRequest.responseCode;
             public IHttpResponseBody Body => this;
@@ -102,11 +104,11 @@ namespace UnityEngine.Extension.WebAPI
                 switch (_webRequest.result)
                 {
                     case UnityWebRequest.Result.ConnectionError:
-                        throw new HttpRequestException(HttpRequestError.ConnectionError, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.ConnectionError, _webRequest.responseCode, _webRequest.error);
                     case UnityWebRequest.Result.ProtocolError:
-                        throw new HttpRequestException(HttpRequestError.ProtocolError, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.ProtocolError, _webRequest.responseCode, _webRequest.error);
                     case UnityWebRequest.Result.DataProcessingError:
-                        throw new HttpRequestException(HttpRequestError.Unknown, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.Unknown, _webRequest.responseCode, _webRequest.error);
                 }
             }
             
@@ -126,11 +128,11 @@ namespace UnityEngine.Extension.WebAPI
                 switch (_webRequest.result)
                 {
                     case UnityWebRequest.Result.ConnectionError:
-                        throw new HttpRequestException(HttpRequestError.ConnectionError, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.ConnectionError, _webRequest.responseCode, _webRequest.error);
                     case UnityWebRequest.Result.ProtocolError:
-                        throw new HttpRequestException(HttpRequestError.ProtocolError, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.ProtocolError, _webRequest.responseCode, _webRequest.error);
                     case UnityWebRequest.Result.DataProcessingError:
-                        throw new HttpRequestException(HttpRequestError.Unknown, _webRequest.responseCode, _webRequest.error);
+                        throw new HttpTransportException(HttpRequestError.Unknown, _webRequest.responseCode, _webRequest.error);
                 }
             }
             
@@ -144,7 +146,7 @@ namespace UnityEngine.Extension.WebAPI
             }
         }
         
-        public async ValueTask<IHttpResponse> Send(HttpRequest request, CancellationToken cancellationToken = default)
+        public async ValueTask<IHttpResponse> SendAsync(HttpRequest request, CancellationToken cancellationToken = default)
         {
             UnityWebRequest unityWebRequest = null;
             IHttpResponse response = null;
@@ -164,10 +166,10 @@ namespace UnityEngine.Extension.WebAPI
             }
         }
 
-        public async ValueTask<IHttpResponse> Schedule(HttpRequest request, float seconds, CancellationToken cancellationToken = default)
+        public async ValueTask<IHttpResponse> ScheduleAsync(HttpRequest request, float seconds, CancellationToken cancellationToken = default)
         {
             await Task.Delay(Mathf.RoundToInt(seconds * 1000.0F), cancellationToken);
-            return await Send(request, cancellationToken);
+            return await SendAsync(request, cancellationToken);
         }
         
         private UnityWebRequest ConvertToUnityWebRequest(HttpRequest httpRequest)

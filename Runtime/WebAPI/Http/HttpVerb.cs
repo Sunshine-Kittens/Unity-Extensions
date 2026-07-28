@@ -1,6 +1,6 @@
 namespace UnityEngine.Extension.WebAPI
 {
-    public enum HttpMethod
+    public enum HttpVerb
     {
         GET,
         POST,
