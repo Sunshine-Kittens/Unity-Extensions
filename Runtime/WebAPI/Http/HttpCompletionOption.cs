@@ -13,8 +13,8 @@ namespace UnityEngine.Extension.WebAPI
 
         /// <summary>
         /// Complete as soon as the response headers are available. The body is still in flight, so the
-        /// caller must drive <see cref="ServiceResponse.ProcessBodyDataAsync"/> itself. Use this when
-        /// you need to observe <see cref="ServiceResponse.PercentComplete"/> while the body downloads.
+        /// caller must drive <see cref="WebServiceResponse.ProcessBodyDataAsync"/> itself. Use this when
+        /// you need to observe <see cref="WebServiceResponse.PercentComplete"/> while the body downloads.
         /// </summary>
         ResponseHeadersRead = 1
     }

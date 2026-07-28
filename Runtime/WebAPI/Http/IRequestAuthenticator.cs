@@ -11,7 +11,7 @@ namespace UnityEngine.Extension.WebAPI
     /// before it can be attached. Request construction stays synchronous as a result.
     /// </para>
     /// <para>
-    /// Assign an implementation to <see cref="ServiceProvider{TServiceType}.Authenticator"/>. It is
+    /// Assign an implementation to <see cref="WebServiceProvider{TServiceType}.Authenticator"/>. It is
     /// deliberately not limited to bearer tokens: a provider that only needs a fixed API-key header
     /// is an equally valid implementation.
     /// </para>

@@ -5,14 +5,14 @@ namespace UnityEngine.Extension.WebAPI
     /// <para>
     /// This exists so that the common case — an endpoint that returns one JSON object — needs no
     /// bespoke response class at all. Only responses that genuinely do something unusual with the
-    /// body need to derive from <see cref="ServiceResponse"/> directly.
+    /// body need to derive from <see cref="WebServiceResponse"/> directly.
     /// </para>
     /// </summary>
-    public class JsonServiceResponse<T> : ServiceResponse
+    public class JsonWebServiceResponse<T> : WebServiceResponse
     {
         public T Result { get; private set; }
 
-        public JsonServiceResponse(IHttpResponse httpResponse) : base(httpResponse) { }
+        public JsonWebServiceResponse(IHttpResponse httpResponse) : base(httpResponse) { }
 
         protected override bool ProcessBodyData()
         {

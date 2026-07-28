@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public abstract class ServiceRequest<TServiceProvider, TServiceResponse> where TServiceProvider : ServiceProvider<TServiceProvider>, new()
+    public abstract class ServiceRequest<TServiceProvider, TServiceResponse> where TServiceProvider : WebServiceProvider<TServiceProvider>, new()
         where  TServiceResponse : ServiceResponse
     {
         public ReadOnlyHttpRequest HttpRequest { get; private set; }
@@ -14,7 +14,7 @@ namespace UnityEngine.Extension.WebAPI
         protected abstract string ResourcePath { get; }
 
         /// <summary>
-        /// Whether <see cref="ServiceProvider{TServiceType}.Authenticator"/> is applied to this
+        /// Whether <see cref="WebServiceProvider{TServiceType}.Authenticator"/> is applied to this
         /// request. Override to false for endpoints that must be sent unauthenticated.
         /// </summary>
         protected virtual bool RequiresAuth => true;
