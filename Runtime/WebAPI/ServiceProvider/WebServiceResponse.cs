@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public abstract class ServiceResponse : IDisposable
+    public abstract class WebServiceResponse : IDisposable
     {
         // Response
         public IReadOnlyDictionary<string, string> Headers => _httpResponse.Headers;
@@ -25,7 +25,7 @@ namespace UnityEngine.Extension.WebAPI
         private readonly IHttpResponse _httpResponse;
         private bool _disposed;
 
-        protected ServiceResponse(IHttpResponse httpResponse)
+        protected WebServiceResponse(IHttpResponse httpResponse)
         {
             _httpResponse = httpResponse ?? throw new ArgumentNullException(nameof(httpResponse));
         }

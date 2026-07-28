@@ -21,7 +21,7 @@ namespace UnityEngine.Extension.WebAPI
     /// nothing. Because the buffer is created on first <see cref="Add(string, string)"/>, it must be
     /// passed by <c>ref</c> — a by-value copy would take the buffer with it and leave the caller's
     /// copy empty. Its lifetime is a single
-    /// <see cref="ServiceRequest{TServiceProvider, TServiceResponse}.BuildQuery"/> call; do not store
+    /// <see cref="WebServiceRequest{TServiceProvider, TServiceResponse}.BuildQuery"/> call; do not store
     /// one in a field.
     /// </para>
     /// </summary>

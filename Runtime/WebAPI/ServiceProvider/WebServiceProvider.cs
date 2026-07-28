@@ -43,7 +43,7 @@ namespace UnityEngine.Extension.WebAPI
 
         /// <summary>
         /// Hook for provider-wide request defaults. Runs on every request before it is populated by
-        /// the <see cref="ServiceRequest{TServiceProvider, TServiceResponse}"/>. Synchronous by
+        /// the <see cref="WebServiceRequest{TServiceProvider, TServiceResponse}"/>. Synchronous by
         /// design — anything that needs to await belongs on <see cref="Authenticator"/>.
         /// </summary>
         protected virtual void ApplyDefaults(HttpRequest request) { }

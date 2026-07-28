@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 
 namespace UnityEngine.Extension.WebAPI
 {
-    public abstract class ServiceRequest<TServiceProvider, TServiceResponse> where TServiceProvider : WebServiceProvider<TServiceProvider>, new()
-        where  TServiceResponse : ServiceResponse
+    public abstract class WebServiceRequest<TServiceProvider, TServiceResponse> where TServiceProvider : WebServiceProvider<TServiceProvider>, new()
+        where  TServiceResponse : WebServiceResponse
     {
         public ReadOnlyHttpRequest HttpRequest { get; private set; }
      
@@ -19,7 +19,7 @@ namespace UnityEngine.Extension.WebAPI
         /// </summary>
         protected virtual bool RequiresAuth => true;
 
-        protected ServiceRequest() { }
+        protected WebServiceRequest() { }
 
         protected abstract TServiceResponse CreateResponse(IHttpResponse httpResponse);
 
@@ -35,7 +35,7 @@ namespace UnityEngine.Extension.WebAPI
         /// Sends the request, completing either once the body has been read
         /// (<see cref="HttpCompletionOption.ResponseContentRead"/>, the default) or as soon as the
         /// headers arrive (<see cref="HttpCompletionOption.ResponseHeadersRead"/>, leaving the caller
-        /// to drive <see cref="ServiceResponse.ProcessBodyDataAsync"/> so it can observe progress).
+        /// to drive <see cref="WebServiceResponse.ProcessBodyDataAsync"/> so it can observe progress).
         /// </summary>
         public async ValueTask<TServiceResponse> SendAsync(HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
         {
@@ -88,7 +88,11 @@ namespace UnityEngine.Extension.WebAPI
             }
         }
 
-        protected abstract void PopulateRequest(HttpRequest request);
+        /// <summary>
+        /// Adds headers and a body to the request. Optional — with authentication applied by the
+        /// provider, a plain GET typically has nothing to add.
+        /// </summary>
+        protected virtual void PopulateRequest(HttpRequest request) { }
 
         /// <summary>
         /// Adds query parameters to the request. Preferred over interpolating them into
