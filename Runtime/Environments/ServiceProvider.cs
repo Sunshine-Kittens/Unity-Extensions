@@ -53,11 +53,11 @@ namespace UnityEngine.Extension
                 {
                     throw new ArgumentException($"[{typeof(TSelf).Name}] An environment was supplied without a name.", nameof(environments));
                 }
-                if (_environments.ContainsKey(name))
+                
+                if (!_environments.TryAdd(name, environment))
                 {
                     throw new ArgumentException($"[{typeof(TSelf).Name}] Duplicate environment '{name}'.", nameof(environments));
                 }
-                _environments.Add(name, environment);
             }
 
             if (!_environments.ContainsKey(defaultEnvironment))
