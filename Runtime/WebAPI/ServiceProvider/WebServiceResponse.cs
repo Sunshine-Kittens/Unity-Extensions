@@ -9,8 +9,10 @@ namespace UnityEngine.Extension.WebAPI
 {
     public abstract class WebServiceResponse : IDisposable
     {
+        private static readonly Dictionary<string, string> _NoHeaders = new (0);
+        
         // Response
-        public IReadOnlyDictionary<string, string> Headers => _httpResponse.Headers;
+        public IReadOnlyDictionary<string, string> Headers => _httpResponse.Headers ?? _NoHeaders;
         public long StatusCode => _httpResponse.StatusCode;
 
         // Body
