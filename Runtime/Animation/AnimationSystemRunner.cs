@@ -54,12 +54,18 @@ namespace UnityEngine.Extension
         {
             for (int i = _playerList.Count - 1; i >= 0; i--)
             {
+                // Update can complete the player, and a completion continuation may release it — which
+                // deregisters it here — so the list can shrink underneath this loop.
+                if (i >= _playerList.Count)
+                    continue;
+
                 AnimationPlayer player = _playerList[i];
                 player.Update();
-                if (!player.IsPlaying)
+
+                // Remove by identity, and only if still registered: the index may no longer be valid.
+                if (!player.IsPlaying && _playerHashSet.Remove(player))
                 {
-                    _playerList.RemoveAt(i);
-                    _playerHashSet.Remove(player);
+                    _playerList.Remove(player);
                 }
             }
         }

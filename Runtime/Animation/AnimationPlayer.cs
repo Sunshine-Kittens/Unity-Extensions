@@ -287,7 +287,7 @@ namespace UnityEngine.Extension
                 if (isAtEnd)
                 {
                     IsPlaying = false;
-                    OnComplete.Invoke(Animation);
+                    OnComplete?.Invoke(Animation);
                 }
                 return true;
             }
@@ -307,7 +307,7 @@ namespace UnityEngine.Extension
                 EvaluateAnimation();
 
                 IsPlaying = false;
-                OnComplete.Invoke(Animation);
+                OnComplete?.Invoke(Animation);
                 return true;
             }
             return false;
@@ -339,7 +339,7 @@ namespace UnityEngine.Extension
                 if (isAtEnd)
                 {
                     IsPlaying = false;
-                    OnComplete.Invoke(Animation);
+                    OnComplete?.Invoke(Animation);
                 }
             }
         }
@@ -355,7 +355,7 @@ namespace UnityEngine.Extension
             switch (PlaybackMode)
             {
                 case PlaybackMode.Forward:
-                    for (int i = _nextEventIndex; i < _sortedEvents.Length; i++)
+                    for (int i = _nextEventIndex; i >= 0 && i < _sortedEvents.Length; i++)
                     {
                         AnimationEvent animEvent = _sortedEvents[i];
                         if (animEvent.Time >= _lastFrameTime && animEvent.Time <= CurrentTime)
@@ -370,10 +370,11 @@ namespace UnityEngine.Extension
                     }
                     break;
                 case PlaybackMode.Reverse:
-                    for (int i = _nextEventIndex; i >= 0; i--)
+                    for (int i = _nextEventIndex; i >= 0 && i < _sortedEvents.Length; i--)
                     {
                         AnimationEvent animEvent = _sortedEvents[i];
-                        if (animEvent.Time >= _lastFrameTime && animEvent.Time <= CurrentTime)
+                        // Time runs backwards, so the frame's elapsed window is [CurrentTime, _lastFrameTime].
+                        if (animEvent.Time <= _lastFrameTime && animEvent.Time >= CurrentTime)
                         {
                             animEvent.Invoke();
                             _nextEventIndex--;
@@ -387,33 +388,32 @@ namespace UnityEngine.Extension
             }
         }
 
+        // Index of the next event to fire, or a past-the-end sentinel when none remain: Length going forward,
+        // -1 going in reverse. A single -1 for both would be read as a valid index by the forward loop.
         private int GetNextAnimationEventIndex(PlaybackMode playbackMode, float time)
         {
-            int index = -1;
-            switch (PlaybackMode)
+            switch (playbackMode)
             {
                 case PlaybackMode.Forward:
                     for (int i = 0; i < _sortedEvents.Length; i++)
                     {
                         if (_sortedEvents[i].Time >= time)
                         {
-                            index = i;
-                            break;
+                            return i;
                         }
                     }
-                    break;
+                    return _sortedEvents.Length;
                 case PlaybackMode.Reverse:
                     for (int i = _sortedEvents.Length - 1; i >= 0; i--)
                     {
                         if (_sortedEvents[i].Time <= time)
                         {
-                            index = i;
-                            break;
+                            return i;
                         }
                     }
-                    break;
+                    return -1;
             }
-            return index;
+            return -1;
         }
         
         public void Release()
