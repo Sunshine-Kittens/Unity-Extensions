@@ -135,7 +135,8 @@ namespace UnityEngine.Extension
             _requestedValue = defaultValue ? _TrueValue : _FalseValue;
             if (previousValue != Value)
             {
-                _onUpdate?.Invoke(previousValue);
+                // Subscribers are told the new value, as with every other mutation on this type.
+                _onUpdate?.Invoke(Value);
             }
         }
 
