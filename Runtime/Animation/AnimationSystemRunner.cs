@@ -67,7 +67,10 @@ namespace UnityEngine.Extension
                 }
                 catch (System.Exception e)
                 {
-                    Debug.Log($"Player for {player.Animation.GetType().Name} removed as an exception has been caught during update: {e.Message}");
+                    // Null-safe: Update's own guard throws precisely when Animation is null, so reading it
+                    // unconditionally here would fault inside the handler and escape the loop.
+                    Debug.Log($"Player for {player.Animation?.GetType().Name ?? "<no animation>"} removed as an exception has been caught during update: {e.Message}"); 
+                    Debug.LogException(e);
                     exceptionCaught = true;
                 }
                 finally
