@@ -131,6 +131,19 @@ namespace UnityEngine.Extension
             return removed;
         }
 
+        public static bool TryRemoveSystem(Type playerLoop)
+        {
+            if (playerLoop == null)
+            {
+                throw new ArgumentNullException(nameof(playerLoop));
+            }
+
+            LowLevel.PlayerLoopSystem currentPlayerLoop = LowLevel.PlayerLoop.GetCurrentPlayerLoop();
+            bool removed = TryRemoveSystem(ref currentPlayerLoop, playerLoop);
+            LowLevel.PlayerLoop.SetPlayerLoop(currentPlayerLoop);
+            return removed;
+        }
+        
         private static bool TryRemoveSystem(ref LowLevel.PlayerLoopSystem playerLoopSystem, Type systemType)
         {
             if (playerLoopSystem.subSystemList == null)

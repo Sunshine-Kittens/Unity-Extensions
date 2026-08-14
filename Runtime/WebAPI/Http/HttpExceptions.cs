@@ -9,25 +9,25 @@ namespace UnityEngine.Extension.WebAPI
         public HttpException(string message, Exception innerException) : base(message, innerException) { }
     }
 
-    public class HttpRequestException : HttpException
+    public class HttpTransportException : HttpException
     {
         public HttpRequestError HttpRequestError { get; }
         public long StatusCode { get; }
 
-        public HttpRequestException(HttpRequestError httpRequestError, long statusCode)
+        public HttpTransportException(HttpRequestError httpRequestError, long statusCode)
         {
             HttpRequestError = httpRequestError;
             StatusCode = statusCode;
         }
         
-        public HttpRequestException(HttpRequestError httpRequestError, long statusCode, string message)
+        public HttpTransportException(HttpRequestError httpRequestError, long statusCode, string message)
             : base(message)
         {
             HttpRequestError = httpRequestError;
             StatusCode = statusCode;
         }
 
-        public HttpRequestException(HttpRequestError httpRequestError, long statusCode, string message, Exception inner)
+        public HttpTransportException(HttpRequestError httpRequestError, long statusCode, string message, Exception inner)
             : base(message, inner)
         {
             HttpRequestError = httpRequestError;

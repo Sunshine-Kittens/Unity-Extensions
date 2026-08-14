@@ -23,7 +23,10 @@ namespace UnityEngine.Extension
 
             if (Persists)
             {
-                DontDestroyOnLoad(gameObject);
+                if (transform.parent != null)
+                    Debug.LogWarning("Singleton is unable to persist as it is not at the scene root");
+                else
+                    DontDestroyOnLoad(gameObject);
             }
             _instance = this as T;
         }

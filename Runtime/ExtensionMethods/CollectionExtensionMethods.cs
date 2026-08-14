@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace UnityEngine.Extension
@@ -90,6 +91,18 @@ namespace UnityEngine.Extension
         public static T RandomElement<T>(this T[] array)
         {
             return array[UnityEngine.Random.Range(0, array.Length)];
+        }
+        
+        public static void Split<T>(this IList<T> source, Func<T, bool> predicate, IList<T> matchBuffer, IList<T> remainingBuffer) 
+        {
+            for (int i = 0; i < source.Count; i++)
+            {
+                var item = source[i];
+                if (predicate(item))
+                    matchBuffer.Add(item);
+                else
+                    remainingBuffer.Add(item);
+            }
         }
     }
 }

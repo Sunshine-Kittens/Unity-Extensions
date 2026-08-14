@@ -60,12 +60,22 @@ namespace UnityEngine.Extension
                     continue;
 
                 AnimationPlayer player = _playerList[i];
-                player.Update();
-
-                // Remove by identity, and only if still registered: the index may no longer be valid.
-                if (!player.IsPlaying && _playerHashSet.Remove(player))
+                bool exceptionCaught = false;
+                try
                 {
-                    _playerList.Remove(player);
+                    player.Update();
+                }
+                catch (System.Exception e)
+                {
+                    Debug.Log($"Player for {player.Animation.GetType().Name} removed as an exception has been caught during update: {e.Message}");
+                    exceptionCaught = true;
+                }
+                finally
+                {
+                    if ((!player.IsPlaying || exceptionCaught) && _playerHashSet.Remove(player))
+                    {
+                        _playerList.Remove(player);                    
+					}
                 }
             }
         }

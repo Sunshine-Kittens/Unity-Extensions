@@ -18,10 +18,15 @@ namespace UnityEngine.Extension
         
         public async Awaitable<GameObject> Get(Vector3 position, Quaternion rotation, Transform parent = null, Action<GameObject> onInstantiate = null)
         {
-            if (!_assetHandle.IsValid())
+            if (!_assetHandle.IsValid() || _assetHandle.Result == null)
             {
                 _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
                 await _assetHandle.Task;
+                if (_assetHandle.Result == null)
+                {
+                    Debug.LogError($"AddressableGameObjectPool: Failed to load asset {_address}");
+                    return null;
+                }
             }
             GameObject gameObject = Get(_assetHandle.Result, onInstantiate);
             gameObject.transform.position = position;
