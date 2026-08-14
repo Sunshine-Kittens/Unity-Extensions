@@ -1,5 +1,5 @@
 {
-  "name": "com.lukeandrews.unity-extension",
+  "name": "com.luke-andrews.unity-extension",
   "version": "1.0.20",
   "displayName": "Unity Engine Extension",
   "description": "A code library that extends the default Unity3D engine functionality.",
