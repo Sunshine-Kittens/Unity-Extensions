@@ -123,7 +123,8 @@ namespace UnityEngine.Extension
             duplicate.CurrentTime = animationPlayer.CurrentTime;
             duplicate.IsPlaying = animationPlayer.IsPlaying;
             duplicate.IsPaused = animationPlayer.IsPaused;
-            duplicate.OnComplete = animationPlayer.OnComplete;
+            // OnComplete is deliberately not copied: the source's subscribers belong to the source's owner,
+            // and a copied invocation list cannot be unsubscribed through the source. Callers wire their own.
             duplicate._sortedEvents = animationPlayer._sortedEvents;
             duplicate._nextEventIndex = animationPlayer._nextEventIndex;
             duplicate._lastUpdateFrame = animationPlayer._lastUpdateFrame;
