@@ -15,6 +15,10 @@ namespace UnityEngine.Extension
 
         private GameObject _poolRoot;
 
+        // A pool that has never held anything has nothing to announce, so the first transition worth
+        // reporting is the one out of empty and back.
+        private bool _notifiedEmpty = true;
+
         public int ActiveCount => _activeObjects.Count;
         public int InactiveCount => _inactivePool.Count;
 
@@ -78,6 +82,7 @@ namespace UnityEngine.Extension
                 // so anything onInstantiate did to send the object straight home was dropped.
                 newPooledObject.Attach(this);
                 _pooledObjects[gameObject] = newPooledObject;
+                _notifiedEmpty = false;
 
                 onInstantiate?.Invoke(gameObject);
             }
@@ -128,6 +133,7 @@ namespace UnityEngine.Extension
                 // Ownership is given up on both sides. A handle left pointing at a pool that no longer
                 // knows it calls back in on destruction and finds itself in neither list.
                 pooledObject.Detach();
+                OnRemoved(gameObject);
                 tracked = true;
             }
 
@@ -150,6 +156,7 @@ namespace UnityEngine.Extension
             if (_pooledObjects.Remove(gameObject, out PooledObject pooledObject))
             {
                 pooledObject.Destroying();
+                OnRemoved(gameObject);
                 tracked = true;
             }
 
@@ -197,7 +204,7 @@ namespace UnityEngine.Extension
                 _poolRoot = null;
             }
 
-            OnPoolEmpty();
+            NotifyIfEmpty();
         }
 
         private void DestroyAll(List<GameObject> objects)
@@ -222,6 +229,7 @@ namespace UnityEngine.Extension
                 {
                     pooledObject.Destroying();
                 }
+                OnRemoved(pooled);
                 Object.Destroy(pooled);
             }
         }
@@ -257,6 +265,7 @@ namespace UnityEngine.Extension
                 // finds it because Unity keeps the managed key's hash after destruction.
                 objects.RemoveAt(i);
                 _pooledObjects.Remove(pooled);
+                OnRemoved(pooled);
                 removed++;
             }
             return removed;
@@ -275,6 +284,7 @@ namespace UnityEngine.Extension
                     // Destroyed while parked. Popping it rather than falling through is the difference
                     // between the pool recovering and it instantiating forever behind a dead tail.
                     _pooledObjects.Remove(candidate);
+                    OnRemoved(candidate);
                     continue;
                 }
 
@@ -288,13 +298,25 @@ namespace UnityEngine.Extension
 
         private void NotifyIfEmpty()
         {
-            if (_pooledObjects.Count == 0)
+            // Edge, not level. This used to fire on every removal once the map was empty, and again from
+            // Clear regardless - which for the addressable pools meant releasing the same handle twice.
+            if (_notifiedEmpty || _pooledObjects.Count > 0)
             {
-                OnPoolEmpty();
+                return;
             }
+
+            _notifiedEmpty = true;
+            OnPoolEmpty();
         }
 
         protected virtual void OnInstantiate(GameObject instantiatedObject) { }
+
+        /// <summary>
+        /// The object has left this pool for good - removed, destroyed, or pruned. The counterpart to
+        /// <see cref="OnInstantiate"/>, and where a subclass drops whatever it recorded there. The object
+        /// may already be destroyed, so treat it as a key rather than something to touch.
+        /// </summary>
+        protected virtual void OnRemoved(GameObject removedObject) { }
 
         protected virtual void OnPoolEmpty() { }
     }

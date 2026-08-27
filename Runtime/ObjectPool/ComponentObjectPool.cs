@@ -11,37 +11,42 @@ namespace UnityEngine.Extension
 
         private readonly Dictionary<GameObject, T> _componentMap;
 
-        public IEnumerable<T> AllComponents
+        /// <summary>
+        /// Every component this pool has built, lent out or parked. A fresh list each time, so acquiring
+        /// and returning while iterating is safe. <see cref="GetAllComponents"/> avoids the allocation.
+        /// </summary>
+        public IReadOnlyList<T> AllComponents
         {
             get
             {
-                foreach (var pair in _componentMap)
-                    yield return pair.Value;
+                List<T> results = new (_componentMap.Count);
+                GetAllComponents(results);
+                return results;
             }
         }
-        
-        public IEnumerable<T> ActiveComponents
+
+        /// <summary>Components currently lent out. A fresh list - see <see cref="AllComponents"/>.</summary>
+        public IReadOnlyList<T> ActiveComponents
         {
             get
             {
-                for (int i = ActiveObjects.Count - 1; i >= 0; i--)
-                {
-                    yield return _componentMap[ActiveObjects[i]];   
-                }
+                List<T> results = new (ActiveObjects.Count);
+                GetActiveComponents(results);
+                return results;
             }
         }
-        
-        public IEnumerable<T> InactiveComponents
+
+        /// <summary>Components currently parked. A fresh list - see <see cref="AllComponents"/>.</summary>
+        public IReadOnlyList<T> InactiveComponents
         {
             get
             {
-                for (int i = InactiveObjects.Count - 1; i >= 0; i--)
-                {
-                    yield return _componentMap[InactiveObjects[i]];   
-                }
+                List<T> results = new (InactiveObjects.Count);
+                GetInactiveComponents(results);
+                return results;
             }
         }
-        
+
         public ComponentObjectPool() : base()
         {
             _componentMap = new ();
@@ -66,9 +71,58 @@ namespace UnityEngine.Extension
             return _componentMap[gameObject];
         }
 
+        /// <summary>Fills <paramref name="results"/> with every component this pool has built.</summary>
+        public void GetAllComponents(List<T> results)
+        {
+            results.Clear();
+
+            foreach (KeyValuePair<GameObject, T> pair in _componentMap)
+            {
+                results.Add(pair.Value);
+            }
+        }
+
+        /// <summary>Fills <paramref name="results"/> with the components currently lent out.</summary>
+        public void GetActiveComponents(List<T> results)
+        {
+            CopyComponents(ActiveObjects, results);
+        }
+
+        /// <summary>Fills <paramref name="results"/> with the components currently parked.</summary>
+        public void GetInactiveComponents(List<T> results)
+        {
+            CopyComponents(InactiveObjects, results);
+        }
+
         protected override void OnInstantiate(GameObject instantiatedObject)
         {
             _componentMap.Add(instantiatedObject, instantiatedObject.GetComponent<T>());
+        }
+
+        protected override void OnRemoved(GameObject removedObject)
+        {
+            // Without this the map grew for the life of the process, holding destroyed components that
+            // AllComponents then handed out - and the shared static pools outlive every scene.
+            _componentMap.Remove(removedObject);
+        }
+
+        /// <summary>
+        /// Copies the components for <paramref name="source"/> into <paramref name="results"/>, newest
+        /// first. A copy, deliberately: enumerating the pool's own list let a caller that returns objects
+        /// as it goes - which is exactly what hiding a set of targets does - walk off the end of a list
+        /// that had shrunk under it.
+        /// </summary>
+        private void CopyComponents(IReadOnlyList<GameObject> source, List<T> results)
+        {
+            results.Clear();
+
+            for (int i = source.Count - 1; i >= 0; i--)
+            {
+                if (_componentMap.TryGetValue(source[i], out T component))
+                {
+                    results.Add(component);
+                }
+            }
         }
     }
 }
