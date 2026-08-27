@@ -10,7 +10,11 @@ namespace UnityEngine.Extension
     /// </summary>
     public interface IPooledObjectHandle
     {
-        /// <summary>The object this handle speaks for. Null once destroyed.</summary>
+        /// <summary>
+        /// The object this handle speaks for. Follows Unity's own destroyed-object semantics, so it is
+        /// still readable while <see cref="Destroyed"/> is being raised and compares equal to null once
+        /// the destruction completes. <see cref="State"/> is the authoritative lifecycle signal.
+        /// </summary>
         public GameObject Instance { get; }
 
         /// <summary>
@@ -22,22 +26,22 @@ namespace UnityEngine.Extension
 
         public PooledObjectState State { get; }
 
-        //TODO: Replace the GameObject payload with IPooledObjectHandle now that the interface exposes the
-        //object it manages. Deferred because it breaks every subscriber signature in the consuming app,
-        //which makes it a two-repository change rather than a package one.
-
         /// <summary>
-        /// Raised once the object is back in its pool, whichever entry point sent it there. Subscriptions
-        /// survive pooling, since the same handle is handed out again on reuse, so subscribers must
-        /// unsubscribe before resubscribing.
+        /// Raised once the object is back in its pool, whichever entry point sent it there.
+        /// <para>
+        /// Scoped to one acquisition. Both events are cleared as the object goes home or is destroyed, so
+        /// subscribe on each acquisition and never unsubscribe - a subscription cannot outlive the life it
+        /// was made for, and cannot accumulate across reuse.
+        /// </para>
         /// </summary>
-        public event Action<GameObject> ReturnedToPool;
+        public event Action<IPooledObjectHandle> ReturnedToPool;
 
         /// <summary>
         /// Raised as the object is destroyed, whatever destroys it: the pool, an explicit
-        /// <see cref="Destroy"/>, or the scene going down.
+        /// <see cref="Destroy"/>, or the scene going down. Scoped to one acquisition, as
+        /// <see cref="ReturnedToPool"/> is.
         /// </summary>
-        public event Action<GameObject> Destroyed;
+        public event Action<IPooledObjectHandle> Destroyed;
 
         /// <summary>Sends the object back to its pool. Does nothing if no pool owns it.</summary>
         public void ReturnToPool();

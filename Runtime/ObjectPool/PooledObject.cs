@@ -15,23 +15,25 @@ namespace UnityEngine.Extension
     [DisallowMultipleComponent]
     internal sealed class PooledObject : MonoBehaviour, IPooledObjectHandle
     {
-        public GameObject Instance => _state == PooledObjectState.Destroyed ? null : gameObject;
+        // Unity's null, not a state check: the object is still alive while Destroyed is raised, and a
+        // subscriber needs to know which object it was. The guard is for reads after the component itself
+        // has gone, where touching gameObject would throw.
+        public GameObject Instance => this != null ? gameObject : null;
         public IObjectPool Pool => _owningPool;
 
         public PooledObjectState State => _state;
 
         /// <summary>
-        /// Raised once the object has gone back to its pool, whichever entry point sent it there.
-        /// Subscriptions survive pooling, since the same component is handed out again on reuse, so
-        /// subscribers must unsubscribe before resubscribing.
+        /// Raised once the object has gone back to its pool, whichever entry point sent it there. Scoped
+        /// to one acquisition - see <see cref="IPooledObjectHandle.ReturnedToPool"/>.
         /// </summary>
-        public event Action<GameObject> ReturnedToPool;
+        public event Action<IPooledObjectHandle> ReturnedToPool;
 
         /// <summary>
         /// Raised as the object is destroyed, whatever destroys it: the pool, an explicit Destroy, or the
-        /// scene going down.
+        /// scene going down. Scoped to one acquisition, as <see cref="ReturnedToPool"/> is.
         /// </summary>
-        public event Action<GameObject> Destroyed;
+        public event Action<IPooledObjectHandle> Destroyed;
 
         private IObjectPool _owningPool;
         private PooledObjectState _state = PooledObjectState.Detached;
@@ -112,7 +114,11 @@ namespace UnityEngine.Extension
                 catch (Exception exception) { Debug.LogException(exception, this); }
             }
 
-            ReturnedToPool?.Invoke(gameObject);
+            // Taken and cleared before raising, so a subscriber that resubscribes from the callback is
+            // signing up for the next acquisition rather than having it wiped a line later.
+            Action<IPooledObjectHandle> returnedToPool = ReturnedToPool;
+            ClearSubscriptions();
+            returnedToPool?.Invoke(this);
         }
 
         internal void Destroying()
@@ -129,7 +135,19 @@ namespace UnityEngine.Extension
                 catch (Exception exception) { Debug.LogException(exception, this); }
             }
 
-            Destroyed?.Invoke(gameObject);
+            Action<IPooledObjectHandle> destroyed = Destroyed;
+            ClearSubscriptions();
+            destroyed?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Ends the subscription scope. Both events belong to one acquisition, so nothing a subscriber
+        /// registered for this life can leak into the next one the pool hands out.
+        /// </summary>
+        private void ClearSubscriptions()
+        {
+            ReturnedToPool = null;
+            Destroyed = null;
         }
 
         private void OnDestroy()

@@ -5,6 +5,9 @@ namespace UnityEngine.Extension
         public int ActiveCount { get; }
         public int InactiveCount { get; }
 
+        /// <summary>Whether this pool owns the object, lent out or parked.</summary>
+        public bool Contains(GameObject gameObject);
+
         /// <summary>
         /// Deactivates the object and files it back in the pool, driving the whole handle flow on the way.
         /// Returns false when the object is not one this pool is currently lending out, which covers the

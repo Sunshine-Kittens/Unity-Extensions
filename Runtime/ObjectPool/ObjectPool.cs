@@ -99,6 +99,11 @@ namespace UnityEngine.Extension
             return gameObject;
         }
 
+        public bool Contains(GameObject gameObject)
+        {
+            return gameObject != null && _pooledObjects.ContainsKey(gameObject);
+        }
+
         public bool ReturnToPool(GameObject gameObject)
         {
             if (gameObject == null || !_activeObjects.Remove(gameObject))
