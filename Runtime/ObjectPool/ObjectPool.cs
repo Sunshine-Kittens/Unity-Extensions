@@ -13,8 +13,39 @@ namespace UnityEngine.Extension
 
         private readonly Dictionary<GameObject, PooledObject> _pooledObjects;
 
+        private GameObject _poolRoot;
+
         public int ActiveCount => _activeObjects.Count;
         public int InactiveCount => _inactivePool.Count;
+
+        /// <summary>
+        /// Where returned objects are parked: an inactive object created on first use and torn down by
+        /// <see cref="Clear"/>. Parking them here is what stops a borrowed parent - a character bone, a
+        /// UI list, a screen being closed - taking the pool's instances down with it when it goes.
+        /// </summary>
+        protected Transform PoolRoot
+        {
+            get
+            {
+                if (_poolRoot == null)
+                {
+                    _poolRoot = new GameObject($"[Pool] {GetType().Name}");
+                    _poolRoot.SetActive(false);
+                    if (PersistPoolRoot)
+                    {
+                        Object.DontDestroyOnLoad(_poolRoot);
+                    }
+                }
+                return _poolRoot.transform;
+            }
+        }
+
+        /// <summary>
+        /// Whether the parking root survives a scene load. False by default, which matches a pool owned by
+        /// something in the scene. Override it for a pool that outlives scenes, or its parked objects go
+        /// down with the scene and have to be built again.
+        /// </summary>
+        protected virtual bool PersistPoolRoot => false;
 
         protected ObjectPool()
         {
@@ -32,15 +63,7 @@ namespace UnityEngine.Extension
 
         protected GameObject Get(GameObject template, Action<GameObject> onInstantiate = null)
         {
-            GameObject gameObject = null;
-            if (_inactivePool.Count > 0)
-            {
-                gameObject = _inactivePool[^1];
-                if (gameObject != null)
-                {
-                    _inactivePool.RemoveAt(_inactivePool.Count - 1);
-                }
-            }
+            GameObject gameObject = TakeFromInactive();
 
             if(gameObject == null)
             {
@@ -82,6 +105,9 @@ namespace UnityEngine.Extension
 
             pooledObject?.Returning();
             gameObject.SetActive(false);
+            // Deactivate first: reparenting an inactive object skips the hierarchy churn an active one
+            // would cause.
+            gameObject.transform.SetParent(PoolRoot, false);
             _inactivePool.Add(gameObject);
             pooledObject?.Returned();
             return true;
@@ -138,6 +164,10 @@ namespace UnityEngine.Extension
 
         public void ReturnAllToPool()
         {
+            // Anything destroyed while out on loan is dropped first. ReturnToPool refuses a dead object,
+            // which would leave its entry behind and the loop half done.
+            Prune();
+
             if (_activeObjects.Count == 0)
             {
                 return;
@@ -158,6 +188,15 @@ namespace UnityEngine.Extension
             DestroyAll(_inactivePool);
 
             _pooledObjects.Clear();
+
+            // The backing field, not the property: asking for the root here would build one only to
+            // destroy it, and Clear runs from OnDestroy where creating objects is not always allowed.
+            if (_poolRoot != null)
+            {
+                Object.Destroy(_poolRoot);
+                _poolRoot = null;
+            }
+
             OnPoolEmpty();
         }
 
@@ -185,6 +224,66 @@ namespace UnityEngine.Extension
                 }
                 Object.Destroy(pooled);
             }
+        }
+
+        /// <summary>
+        /// Drops every instance that has been destroyed behind the pool's back and reports how many went.
+        /// Handles are normally removed by their own OnDestroy, so this is the net for what that misses -
+        /// a domain reload, or a scene that took the parking root with it.
+        /// </summary>
+        public int Prune()
+        {
+            int removed = PruneList(_activeObjects) + PruneList(_inactivePool);
+
+            if (removed > 0)
+            {
+                NotifyIfEmpty();
+            }
+            return removed;
+        }
+
+        private int PruneList(List<GameObject> objects)
+        {
+            int removed = 0;
+            for (int i = objects.Count - 1; i >= 0; i--)
+            {
+                GameObject pooled = objects[i];
+                if (pooled != null)
+                {
+                    continue;
+                }
+
+                // By index: a destroyed object is awkward to match by value, and the dictionary still
+                // finds it because Unity keeps the managed key's hash after destruction.
+                objects.RemoveAt(i);
+                _pooledObjects.Remove(pooled);
+                removed++;
+            }
+            return removed;
+        }
+
+        private GameObject TakeFromInactive()
+        {
+            while (_inactivePool.Count > 0)
+            {
+                int last = _inactivePool.Count - 1;
+                GameObject candidate = _inactivePool[last];
+                _inactivePool.RemoveAt(last);
+
+                if (candidate == null)
+                {
+                    // Destroyed while parked. Popping it rather than falling through is the difference
+                    // between the pool recovering and it instantiating forever behind a dead tail.
+                    _pooledObjects.Remove(candidate);
+                    continue;
+                }
+
+                // Leaves the root the way a fresh Instantiate arrives: no parent, local transform intact.
+                // Get then hands back the same shape of object whichever branch produced it.
+                candidate.transform.SetParent(null, false);
+                return candidate;
+            }
+            return null;
         }
 
         private void NotifyIfEmpty()

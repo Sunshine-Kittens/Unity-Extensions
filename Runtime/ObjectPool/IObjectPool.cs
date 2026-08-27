@@ -19,6 +19,14 @@ namespace UnityEngine.Extension
         public bool DestroyFromPool(GameObject gameObject);
 
         public void ReturnAllToPool();
+
+        /// <summary>
+        /// Drops every instance destroyed behind the pool's back and reports how many went. Rarely needed
+        /// directly - returning and clearing prune as they go - but useful after a scene has taken objects
+        /// the pool was still holding.
+        /// </summary>
+        public int Prune();
+
         public void Clear();
     }
 }
