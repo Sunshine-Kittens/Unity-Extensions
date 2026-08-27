@@ -11,20 +11,23 @@ namespace UnityEngine.Extension
         protected IReadOnlyList<GameObject> InactiveObjects => _inactivePool;
         private readonly List<GameObject> _inactivePool;
 
-        private readonly Dictionary<GameObject, IPooledObjectHandle> _handleMap;
-        
+        private readonly Dictionary<GameObject, PooledObject> _pooledObjects;
+
+        public int ActiveCount => _activeObjects.Count;
+        public int InactiveCount => _inactivePool.Count;
+
         protected ObjectPool()
         {
             _activeObjects = new List<GameObject>();
             _inactivePool = new List<GameObject>();
-            _handleMap = new Dictionary<GameObject, IPooledObjectHandle>();
+            _pooledObjects = new Dictionary<GameObject, PooledObject>();
         }
 
         protected ObjectPool(int capacity)
         {
             _activeObjects = new List<GameObject>(capacity);
             _inactivePool = new List<GameObject>(capacity);
-            _handleMap = new Dictionary<GameObject, IPooledObjectHandle>(capacity);
+            _pooledObjects = new Dictionary<GameObject, PooledObject>(capacity);
         }
 
         protected GameObject Get(GameObject template, Action<GameObject> onInstantiate = null)
@@ -35,110 +38,163 @@ namespace UnityEngine.Extension
                 gameObject = _inactivePool[^1];
                 if (gameObject != null)
                 {
-                    gameObject.SetActive(true);
                     _inactivePool.RemoveAt(_inactivePool.Count - 1);
                 }
             }
-            
+
             if(gameObject == null)
             {
                 gameObject = Object.Instantiate(template);
                 OnInstantiate(gameObject);
+
+                PooledObject newPooledObject = gameObject.GetComponent<PooledObject>();
+                if (newPooledObject == null)
+                    newPooledObject = gameObject.AddComponent<PooledObject>();
+
+                // Ownership is settled before the callback runs. An unowned handle ignores ReturnToPool,
+                // so anything onInstantiate did to send the object straight home was dropped.
+                newPooledObject.Attach(this);
+                _pooledObjects[gameObject] = newPooledObject;
+
                 onInstantiate?.Invoke(gameObject);
-                IPooledObjectHandle handle = gameObject.GetComponent<IPooledObjectHandle>();
-                if (handle == null)
-                {
-                    handle = gameObject.AddComponent<PooledObjectComponent>();
-                }
-                handle.Init(this);
-                _handleMap.Add(gameObject, handle);
             }
+
+            // Both branches, not just reuse: a prefab is free to deactivate itself in Awake, and the pool
+            // still owes the caller something live.
+            gameObject.SetActive(true);
             _activeObjects.Add(gameObject);
+
+            if (_pooledObjects.TryGetValue(gameObject, out PooledObject pooledObject))
+            {
+                pooledObject.Acquire();
+            }
             return gameObject;
         }
 
-        public void ReturnToPool(GameObject gameObject)
+        public bool ReturnToPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(gameObject))
+            if (gameObject == null || !_activeObjects.Remove(gameObject))
             {
-                throw new InvalidOperationException("Unable to return object to pool it does not belong to.");
+                return false;
             }
+
+            _pooledObjects.TryGetValue(gameObject, out PooledObject pooledObject);
+
+            pooledObject?.Returning();
             gameObject.SetActive(false);
             _inactivePool.Add(gameObject);
+            pooledObject?.Returned();
+            return true;
         }
 
-        public void RemoveFromPool(GameObject gameObject)
+        public bool RemoveFromPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(gameObject))
+            if (gameObject == null)
             {
-                if (!_inactivePool.Remove(gameObject))
-                {
-                    throw new InvalidOperationException("Unable to remove object from a pool that it does not belong to.");
-                }
+                return false;
             }
-            
-            _handleMap.Remove(gameObject);
-            if (_handleMap.Count == 0)
+
+            // Both removals run: | rather than || is deliberate.
+            bool tracked = _activeObjects.Remove(gameObject) | _inactivePool.Remove(gameObject);
+
+            if (_pooledObjects.Remove(gameObject, out PooledObject pooledObject))
             {
-                OnPoolEmpty();
+                // Ownership is given up on both sides. A handle left pointing at a pool that no longer
+                // knows it calls back in on destruction and finds itself in neither list.
+                pooledObject.Detach();
+                tracked = true;
             }
+
+            if (tracked)
+            {
+                NotifyIfEmpty();
+            }
+            return tracked;
         }
-        
-        public void DestroyFromPool(GameObject gameObject)
+
+        public bool DestroyFromPool(GameObject gameObject)
         {
-            if (!_activeObjects.Remove(gameObject))
+            if (gameObject == null)
             {
-                if (!_inactivePool.Remove(gameObject))
-                {
-                    throw new InvalidOperationException("Unable to destroy object from a pool that it does not belong to.");
-                }
+                return false;
             }
-            
-            if (_handleMap.Remove(gameObject, out IPooledObjectHandle handle))
+
+            bool tracked = _activeObjects.Remove(gameObject) | _inactivePool.Remove(gameObject);
+
+            if (_pooledObjects.Remove(gameObject, out PooledObject pooledObject))
             {
-                handle.Destroy();   
+                pooledObject.Destroying();
+                tracked = true;
             }
-            
-            if (_handleMap.Count == 0)
+
+            Object.Destroy(gameObject);
+
+            if (tracked)
             {
-                OnPoolEmpty();
+                NotifyIfEmpty();
             }
+            return tracked;
         }
 
         public void ReturnAllToPool()
         {
-            foreach (GameObject pooledObject in _activeObjects)
+            if (_activeObjects.Count == 0)
             {
-                pooledObject.SetActive(false);
-                _inactivePool.Add(pooledObject);
+                return;
             }
-            _activeObjects.Clear();
+
+            // Snapshot: Returned runs listener and subscriber code, and anything that returns or acquires
+            // another object would reshape the list underneath the loop.
+            GameObject[] returning = _activeObjects.ToArray();
+            for (int i = 0; i < returning.Length; i++)
+            {
+                ReturnToPool(returning[i]);
+            }
         }
 
         public void Clear()
         {
-            for (int i = 0; i < _activeObjects.Count; i++)
-            {
-                if (_handleMap.Remove(_activeObjects[i], out IPooledObjectHandle handle))
-                {
-                    handle.Destroy();   
-                }
-            }
-            _activeObjects.Clear();
-            
-            for (int i = 0; i < _inactivePool.Count; i++)
-            {
-                if (_handleMap.Remove(_inactivePool[i], out IPooledObjectHandle handle))
-                {
-                    handle.Destroy();   
-                }
-            }
-            _inactivePool.Clear();
-            
-            _handleMap.Clear();
+            DestroyAll(_activeObjects);
+            DestroyAll(_inactivePool);
+
+            _pooledObjects.Clear();
             OnPoolEmpty();
         }
-        
+
+        private void DestroyAll(List<GameObject> objects)
+        {
+            if (objects.Count == 0)
+            {
+                return;
+            }
+
+            GameObject[] destroying = objects.ToArray();
+            objects.Clear();
+
+            for (int i = 0; i < destroying.Length; i++)
+            {
+                GameObject pooled = destroying[i];
+                if (pooled == null)
+                {
+                    continue;
+                }
+
+                if (_pooledObjects.Remove(pooled, out PooledObject pooledObject))
+                {
+                    pooledObject.Destroying();
+                }
+                Object.Destroy(pooled);
+            }
+        }
+
+        private void NotifyIfEmpty()
+        {
+            if (_pooledObjects.Count == 0)
+            {
+                OnPoolEmpty();
+            }
+        }
+
         protected virtual void OnInstantiate(GameObject instantiatedObject) { }
 
         protected virtual void OnPoolEmpty() { }
