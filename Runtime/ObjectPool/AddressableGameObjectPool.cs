@@ -63,6 +63,11 @@ namespace UnityEngine.Extension
 
             if (_loadTask == null)
             {
+                // An attempt that resolved to nothing still leaves a valid handle behind. Release it
+                // before asking for another, or the failed one is overwritten and never given back -
+                // the very leak the shared gate below exists to prevent.
+                ReleaseAsset();
+
                 _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
                 _loadTask = _assetHandle.Task;
             }
@@ -81,13 +86,18 @@ namespace UnityEngine.Extension
 
         protected override void OnPoolEmpty()
         {
+            ReleaseAsset();
+        }
+
+        private void ReleaseAsset()
+        {
             _loadTask = null;
 
             if (_assetHandle.IsValid())
                 Addressables.Release(_assetHandle);
 
             // Reset rather than left dangling: IsValid alone does not stop a released handle being
-            // released twice, and the next Get has to see that there is nothing loaded.
+            // released twice, and the next load has to see that there is nothing held.
             _assetHandle = default;
         }
     }

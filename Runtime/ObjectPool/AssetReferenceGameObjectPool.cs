@@ -45,6 +45,10 @@ namespace UnityEngine.Extension
 
             if (_loadTask == null)
             {
+                // A previous attempt that resolved to nothing still holds a handle - release it rather
+                // than assign over it and lose the reference.
+                ReleaseAsset();
+
                 _assetHandle = _assetReference.LoadAssetAsync();
                 _loadTask = _assetHandle.Task;
             }
@@ -61,11 +65,16 @@ namespace UnityEngine.Extension
 
         protected override void OnPoolEmpty()
         {
+            ReleaseAsset();
+        }
+
+        private void ReleaseAsset()
+        {
             _loadTask = null;
 
             if (_assetHandle.IsValid())
                 Addressables.Release(_assetHandle);
-            
+
             _assetHandle = default;
         }
     }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using UnityEngine.SceneManagement;
+
 namespace UnityEngine.Extension
 {
     public abstract class ObjectPool : IObjectPool
@@ -23,6 +25,7 @@ namespace UnityEngine.Extension
         [SerializeField] private int _maxParked;
 
         private GameObject _poolRoot;
+        private bool _persistPoolRoot;
         private bool _capacityReserved;
 
         // A pool that has never held anything has nothing to announce, so the first transition worth
@@ -75,10 +78,36 @@ namespace UnityEngine.Extension
 
         /// <summary>
         /// Whether the parking root survives a scene load. False by default, which matches a pool owned by
-        /// something in the scene. Override it for a pool that outlives scenes, or its parked objects go
-        /// down with the scene and have to be built again.
+        /// something in the scene. Set it true for a pool owned by anything app-scoped, or its parked set
+        /// is discarded and rebuilt on every scene change. Safe to set before or after the root exists.
         /// </summary>
-        protected virtual bool PersistPoolRoot => false;
+        public bool PersistPoolRoot
+        {
+            get => _persistPoolRoot;
+            set
+            {
+                if (_persistPoolRoot == value)
+                {
+                    return;
+                }
+
+                _persistPoolRoot = value;
+
+                if (_poolRoot == null)
+                {
+                    return;
+                }
+
+                if (value)
+                {
+                    Object.DontDestroyOnLoad(_poolRoot);
+                }
+                else
+                {
+                    SceneManager.MoveGameObjectToScene(_poolRoot, SceneManager.GetActiveScene());
+                }
+            }
+        }
 
         protected ObjectPool()
         {
@@ -100,10 +129,11 @@ namespace UnityEngine.Extension
             ReserveCapacity();
 
             GameObject gameObject = TakeFromInactive();
+            bool instantiated = gameObject == null;
 
-            if(gameObject == null)
+            if(instantiated)
             {
-                gameObject = CreateInstance(template, onInstantiate);
+                gameObject = CreateInstance(template);
             }
             else
             {
@@ -124,13 +154,22 @@ namespace UnityEngine.Extension
             {
                 pooledObject.Acquire();
             }
+
+            // Last, and only now that the object is tracked as lent out. Attaching before the callback was
+            // not enough on its own: ReturnToPool from in here found nothing in the active list to remove
+            // and quietly did nothing at all.
+            if (instantiated)
+            {
+                onInstantiate?.Invoke(gameObject);
+            }
+
             return gameObject;
         }
 
         /// <summary>
-        /// Builds instances until the pool holds at least <paramref name="count"/>, parking them ready to
-        /// hand out. Moves the instantiation cost to a moment of your choosing rather than the first
-        /// several acquisitions.
+        /// Builds instances until at least <paramref name="count"/> are parked and ready to hand out.
+        /// Counts what is parked, not what the pool owns: objects already lent out are not going to serve
+        /// the next acquisition, so they cannot count towards being ready for it.
         /// </summary>
         protected void Prewarm(GameObject template, int count)
         {
@@ -141,7 +180,7 @@ namespace UnityEngine.Extension
 
             ReserveCapacity();
 
-            while (_pooledObjects.Count < count)
+            while (_inactivePool.Count < count)
             {
                 if (_maxParked > 0 && _inactivePool.Count >= _maxParked)
                 {
@@ -149,13 +188,19 @@ namespace UnityEngine.Extension
                     break;
                 }
 
-                GameObject instance = CreateInstance(template, null);
+                GameObject instance = CreateInstance(template);
 
                 // Parked directly rather than through the return path: nothing acquired it, so there is
-                // no acquisition to announce the end of.
+                // no acquisition to announce the end of - but the handle still has to say Pooled, since
+                // Attach leaves it reading Active and nobody is going to correct it.
                 instance.SetActive(false);
                 instance.transform.SetParent(PoolRoot, false);
                 _inactivePool.Add(instance);
+
+                if (_pooledObjects.TryGetValue(instance, out PooledObject pooledObject))
+                {
+                    pooledObject.Park();
+                }
             }
         }
 
@@ -173,6 +218,14 @@ namespace UnityEngine.Extension
 
             _pooledObjects.TryGetValue(gameObject, out PooledObject pooledObject);
             pooledObject?.Returning();
+
+            // Returning() runs listener code, and a listener is free to destroy the object outright.
+            // Whatever took it out of the pool has already done the bookkeeping; carrying on would shelve
+            // a doomed instance and overwrite its terminal state back to Pooled.
+            if (!_pooledObjects.ContainsKey(gameObject))
+            {
+                return true;
+            }
 
             if (_maxParked > 0 && _inactivePool.Count >= _maxParked)
             {
@@ -200,12 +253,25 @@ namespace UnityEngine.Extension
 
             // Both removals run: | rather than || is deliberate.
             bool tracked = _activeObjects.Remove(gameObject) | _inactivePool.Remove(gameObject);
+            bool mapped = _pooledObjects.Remove(gameObject, out PooledObject pooledObject);
 
-            if (_pooledObjects.Remove(gameObject, out PooledObject pooledObject))
+            // A parked object is still under the parking root, and giving up ownership while leaving it
+            // there means Clear destroys the object this method promised not to destroy. Skipped for one
+            // already on its way out - this also runs from OnDestroy, where reparenting is pointless.
+            bool leaving = pooledObject == null || pooledObject.State == PooledObjectState.Destroyed;
+            if (!leaving && _poolRoot != null && gameObject.transform.parent == _poolRoot.transform)
+            {
+                gameObject.transform.SetParent(null, false);
+            }
+
+            if (mapped)
             {
                 // Ownership is given up on both sides. A handle left pointing at a pool that no longer
                 // knows it calls back in on destruction and finds itself in neither list.
-                pooledObject.Detach();
+                if (pooledObject != null)
+                {
+                    pooledObject.Detach();
+                }
                 OnRemoved(gameObject);
                 tracked = true;
             }
@@ -294,6 +360,19 @@ namespace UnityEngine.Extension
             DestroyAll(_activeObjects);
             DestroyAll(_inactivePool);
 
+            // Anything still mapped was in neither list. Draining it through the same per-object path
+            // keeps a subclass's own map in step; clearing in bulk left it holding what this one forgot.
+            if (_pooledObjects.Count > 0)
+            {
+                GameObject[] stranded = new GameObject[_pooledObjects.Count];
+                _pooledObjects.Keys.CopyTo(stranded, 0);
+
+                for (int i = 0; i < stranded.Length; i++)
+                {
+                    DestroyInstance(stranded[i]);
+                }
+            }
+
             _pooledObjects.Clear();
 
             // The backing field, not the property: asking for the root here would build one only to
@@ -304,6 +383,9 @@ namespace UnityEngine.Extension
                 _poolRoot = null;
             }
 
+            // A teardown, not a transition: whatever the pool held is gone, and a subclass with an asset
+            // to release has to hear about it even if nothing was ever instantiated to trip the edge.
+            _notifiedEmpty = false;
             NotifyIfEmpty();
         }
 
@@ -323,7 +405,7 @@ namespace UnityEngine.Extension
             return removed;
         }
 
-        private GameObject CreateInstance(GameObject template, Action<GameObject> onInstantiate)
+        private GameObject CreateInstance(GameObject template)
         {
             GameObject instance = Object.Instantiate(template);
             InstantiatedCount++;
@@ -338,25 +420,30 @@ namespace UnityEngine.Extension
             pooledObject.Attach(this);
             _pooledObjects[instance] = pooledObject;
             _notifiedEmpty = false;
-
-            onInstantiate?.Invoke(instance);
             return instance;
         }
 
         private void DestroyInstance(GameObject instance)
         {
-            if (instance == null)
+            // Reference null only - a Unity-null instance is one already destroyed, and its entry still
+            // has to go. Bailing on it here left the map holding it, which is enough on its own to stop
+            // the pool ever reporting itself empty again.
+            if (instance is null)
             {
                 return;
             }
 
-            if (_pooledObjects.Remove(instance, out PooledObject pooledObject))
+            if (_pooledObjects.Remove(instance, out PooledObject pooledObject) && pooledObject != null)
             {
                 pooledObject.Destroying();
             }
 
             OnRemoved(instance);
-            Object.Destroy(instance);
+
+            if (instance != null)
+            {
+                Object.Destroy(instance);
+            }
         }
 
         private void DestroyAll(List<GameObject> objects)

@@ -84,6 +84,16 @@ namespace UnityEngine.Extension
                 _state = PooledObjectState.Detached;
         }
 
+        /// <summary>
+        /// Parked without ever having been lent out - prewarming. Attach leaves the state reading Active,
+        /// which is right for an object about to be handed over and wrong for one going straight to the
+        /// shelf.
+        /// </summary>
+        internal void Park()
+        {
+            _state = PooledObjectState.Pooled;
+        }
+
         internal void Acquire()
         {
             _state = PooledObjectState.Active;
@@ -156,9 +166,13 @@ namespace UnityEngine.Extension
                 return;
 
             // Unity is taking the object down with no pool involvement: scene unload, a parent going away,
-            // or a plain Destroy call. Tell the pool before going, so it is not left holding a dead entry.
-            _owningPool?.RemoveFromPool(gameObject);
+            // or a plain Destroy call. Tell the pool so it is not left holding a dead entry - but mark the
+            // state first, so the pool can tell a disowned object from one that is already leaving and
+            // does not try to reparent something Unity is in the middle of destroying. Destroying() drops
+            // the pool reference, hence the capture.
+            IObjectPool owningPool = _owningPool;
             Destroying();
+            owningPool?.RemoveFromPool(gameObject);
         }
     }
 }
