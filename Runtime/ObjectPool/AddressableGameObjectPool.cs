@@ -36,6 +36,23 @@ namespace UnityEngine.Extension
         }
 
         /// <summary>
+        /// Loads the asset if it is not loaded, then builds instances until the pool holds at least
+        /// <paramref name="count"/>, parked and ready. False if the asset could not be loaded.
+        /// </summary>
+        public async Awaitable<bool> Prewarm(int count)
+        {
+            GameObject template = await GetTemplate();
+            if (template == null)
+            {
+                Debug.LogError($"AddressableGameObjectPool: Failed to load asset {_address}");
+                return false;
+            }
+
+            Prewarm(template, count);
+            return true;
+        }
+
+        /// <summary>
         /// One load, however many callers arrive while it is in flight. Each used to start its own the
         /// moment it saw an invalid handle; every handle but the last was then overwritten and leaked.
         /// </summary>

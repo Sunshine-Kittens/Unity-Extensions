@@ -71,6 +71,21 @@ namespace UnityEngine.Extension
             return _componentMap[gameObject];
         }
 
+        /// <summary>
+        /// Builds instances until the pool holds at least <paramref name="count"/>, parked and ready.
+        /// Call it where a hitch does not matter - a loading screen, a mini-game setting up - rather than
+        /// letting the first several acquisitions pay for it.
+        /// </summary>
+        public void Prewarm(int count)
+        {
+            if (_template == null)
+            {
+                Debug.LogError($"ComponentObjectPool<{typeof(T).Name}>: cannot prewarm without a template.");
+                return;
+            }
+            Prewarm(_template.gameObject, count);
+        }
+
         /// <summary>Fills <paramref name="results"/> with every component this pool has built.</summary>
         public void GetAllComponents(List<T> results)
         {
