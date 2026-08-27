@@ -4,6 +4,18 @@ namespace UnityEngine.Extension
 {
     public class PooledObjectComponent : MonoBehaviour, IPooledObjectHandle
     {
+        /// <summary>
+        /// Raised once the object has gone back to its pool. Subscriptions survive pooling, since the same
+        /// component is handed out again on reuse, so subscribers must unsubscribe before resubscribing.
+        /// </summary>
+        public event Action<GameObject> ReturnedToPool;
+
+        /// <summary>
+        /// Raised as the object is destroyed, whatever destroys it: the pool, an explicit Destroy, or the
+        /// scene going down. A subclass overriding OnDestroy must call base.OnDestroy() or it never fires.
+        /// </summary>
+        public event Action<GameObject> Destroyed;
+
         private bool _pendingDestroy = false;
         private IObjectPool _owningPool = null;
 
@@ -18,6 +30,7 @@ namespace UnityEngine.Extension
             {
                 OnReturnToPool();
                 _owningPool.ReturnToPool(gameObject);
+                ReturnedToPool?.Invoke(gameObject);
             }
         }
 
@@ -44,6 +57,7 @@ namespace UnityEngine.Extension
         protected virtual void OnDestroy()
         {
             DestroyFromPool();
+            Destroyed?.Invoke(gameObject);
         }
     }
 }
