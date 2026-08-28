@@ -23,6 +23,10 @@ namespace UnityEngine.Extension
         /// parked object is lifted off the pool's parking root so a later Clear cannot take it down. The
         /// object is handed back exactly as it was - one that was parked is still deactivated, one that
         /// was lent out is still live. The pool changes no active state on the way out.
+        /// <para>
+        /// The object stays the caller's problem from here, and a pool backed by a loaded asset keeps
+        /// that asset for as long as the object it gave up is alive - it is still an instance of it.
+        /// </para>
         /// </summary>
         public bool RemoveFromPool(GameObject gameObject);
 

@@ -61,10 +61,16 @@ namespace UnityEngine.Extension.Tests
         public void PrewarmedHandlesReportPooled()
         {
             Pool.Fill(1);
-            GameObject parked = Pool.Acquire();
+
+            // Read before acquiring. Asserting after it proves nothing about prewarming, because Acquire
+            // writes Active over whatever was there.
+            Assert.That(Handle(Pool.Parked[0]).State, Is.EqualTo(PooledObjectState.Pooled),
+                "a prewarmed instance is parked and its handle has to say so - Attach leaves it reading Active");
+
+            GameObject reused = Pool.Acquire();
 
             Assert.That(Pool.InstantiatedCount, Is.EqualTo(1), "the prewarmed instance should have been reused");
-            Assert.That(Handle(parked).State, Is.EqualTo(PooledObjectState.Active));
+            Assert.That(Handle(reused).State, Is.EqualTo(PooledObjectState.Active));
         }
 
         [Test]
@@ -74,12 +80,15 @@ namespace UnityEngine.Extension.Tests
 
             GameObject first = Pool.Acquire();
             GameObject second = Pool.Acquire();
+            IPooledObjectHandle doomed = Handle(second);
 
             Pool.ReturnToPool(first);
             Pool.ReturnToPool(second);
 
             Assert.That(Pool.InactiveCount, Is.EqualTo(1));
-            Assert.That(second == null, Is.True, "the object past the ceiling should have been destroyed, not kept");
+            Assert.That(doomed.State, Is.EqualTo(PooledObjectState.Destroyed),
+                "the object past the ceiling should have been destroyed, not kept");
+            Assert.That(second == null, Is.True, "edit mode destroys immediately, so it should be gone already");
         }
 
         [Test]
@@ -98,10 +107,10 @@ namespace UnityEngine.Extension.Tests
             Pool.ReturnToPool(instance);
 
             Object.DestroyImmediate(instance);
-            Pool.Prune();
 
             // Edit mode does not run OnDestroy for these components, so the pool genuinely never hears
             // about this one - which is exactly the state Prune exists to clean up.
+            Assert.That(Pool.Prune(), Is.EqualTo(1), "Prune did not report the instance it dropped");
             Assert.That(Pool.InactiveCount, Is.EqualTo(0));
             Assert.That(Pool.ActiveCount, Is.EqualTo(0));
         }
@@ -126,10 +135,10 @@ namespace UnityEngine.Extension.Tests
             Pool.ReturnToPool(instance);
             Object.DestroyImmediate(instance);
 
-            Pool.Trim(0);
+            Assert.That(Pool.Trim(0), Is.EqualTo(1), "Trim did not report the destroyed instance it dropped");
 
             Assert.That(Pool.InactiveCount, Is.EqualTo(0));
-            Assert.That(Pool.PoolEmptyCount, Is.GreaterThanOrEqualTo(1),
+            Assert.That(Pool.PoolEmptyCount, Is.EqualTo(1),
                 "a tracking entry left behind by a destroyed instance stops the pool ever reporting itself empty");
         }
 
@@ -149,8 +158,13 @@ namespace UnityEngine.Extension.Tests
             GameObject parked = Pool.Acquire();
             Pool.ReturnToPool(parked);
 
+            IPooledObjectHandle lentOutHandle = Handle(lentOut);
+            IPooledObjectHandle parkedHandle = Handle(parked);
+
             Pool.Clear();
 
+            Assert.That(lentOutHandle.State, Is.EqualTo(PooledObjectState.Destroyed));
+            Assert.That(parkedHandle.State, Is.EqualTo(PooledObjectState.Destroyed));
             Assert.That(lentOut == null, Is.True);
             Assert.That(parked == null, Is.True);
             Assert.That(Pool.ActiveCount, Is.EqualTo(0));

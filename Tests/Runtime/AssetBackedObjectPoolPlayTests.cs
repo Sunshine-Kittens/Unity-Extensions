@@ -66,11 +66,10 @@ namespace UnityEngine.Extension.PlayTests
                 _holdsHandle = false;
                 _loaded = null;
 
-                // Mirrors Addressables: releasing an operation that is still in flight completes it rather
-                // than leaving whoever is awaiting it hanging.
-                TaskCompletionSource<GameObject> pending = _pending;
-                _pending = null;
-                pending?.TrySetResult(null);
+                // Deliberately leaves an in-flight load running. Releasing a handle does not cancel the
+                // operation behind it: the task the caller is awaiting still completes, and completes with
+                // the real asset. A fake that resolved it with null here would hand the generation check a
+                // null to pass through and pin nothing at all.
             }
 
             protected override void OnPoolEmpty()
@@ -79,11 +78,21 @@ namespace UnityEngine.Extension.PlayTests
                 base.OnPoolEmpty();
             }
 
+            /// <summary>
+            /// Completes the load. It always resolves with the asset, because that is what the underlying
+            /// operation does - but it only populates the template if the handle is still held. A release
+            /// cleared that handle, and the operation finishing afterwards does not put it back.
+            /// </summary>
             public void FinishLoad()
             {
-                _loaded = _prefab;
-                _pending?.TrySetResult(_prefab);
+                if (_holdsHandle)
+                {
+                    _loaded = _prefab;
+                }
+
+                TaskCompletionSource<GameObject> pending = _pending;
                 _pending = null;
+                pending?.TrySetResult(_prefab);
             }
 
             public void FailLoad()
@@ -191,6 +200,11 @@ namespace UnityEngine.Extension.PlayTests
 
             // Clear releases the asset. The load is still resolving against it.
             _pool.Clear();
+
+            // And now it resolves - successfully, with the asset. That is the whole case: the await
+            // completes normally, so the only thing that can tell the pool the result is no longer its to
+            // hand out is the generation it started the load in.
+            _pool.FinishLoad();
             yield return WaitForCompletions(1);
 
             Assert.That(_pool.Results[0], Is.Null,
@@ -204,6 +218,7 @@ namespace UnityEngine.Extension.PlayTests
             _pool.BeginAcquire();
             yield return null;
             _pool.Clear();
+            _pool.FinishLoad();
             yield return WaitForCompletions(1);
 
             // The generation bump must invalidate the in-flight load without wedging the gate shut.

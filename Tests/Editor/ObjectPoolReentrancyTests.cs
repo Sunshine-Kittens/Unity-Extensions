@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 using NUnit.Framework;
@@ -191,8 +192,91 @@ namespace UnityEngine.Extension.Tests
             }
         }
 
-        // The paths that begin with Unity destroying an object - OnDestroy telling the pool, and the
-        // ordering that keeps a destroy subscriber from being handed the dying instance - live in the
-        // PlayMode suite. Edit mode does not run OnDestroy for these components, so they cannot start here.
+        [Test]
+        public void ACallbackTakingOwnership_DoesNotLetThePoolCallItselfEmpty()
+        {
+            // The hand-off empties the pool's map while the object it is handing over is alive. Reading
+            // that as an empty pool is an asset-backed subclass's cue to free the asset - so Get would
+            // return a live instance of something already unloaded.
+            GameObject handedOver = Pool.Acquire(instance => Pool.RemoveFromPool(instance));
+
+            Assert.That(Pool.PoolEmptyCount, Is.EqualTo(0),
+                "the pool called itself empty while handing over a live instance built from its asset");
+
+            Object.DestroyImmediate(handedOver);
+        }
+
+        [Test]
+        public void ASecondClearAfterAFailedDrain_StillDoesNotReportEmpty()
+        {
+            LogAssert.Expect(LogType.Error, new Regex("could not drain"));
+
+            List<GameObject> survivors = new();
+
+            Pool.Acquire();
+            RecordingListener.WhenAnyDestroying = _ => survivors.Add(Pool.Acquire());
+
+            Pool.Clear();
+            RecordingListener.WhenAnyDestroying = null;
+
+            // The first Clear withheld the notification because instances survived it. The second finds
+            // every collection already emptied, takes the healthy path, and would announce what the first
+            // one deliberately did not - the survivors are still alive and still need the asset.
+            Pool.Clear();
+
+            Assert.That(Pool.PoolEmptyCount, Is.EqualTo(0),
+                "a second Clear announced an empty pool while the first Clear's survivors were still alive");
+
+            for (int i = 0; i < survivors.Count; i++)
+            {
+                if (survivors[i] != null)
+                {
+                    Object.DestroyImmediate(survivors[i]);
+                }
+            }
+        }
+
+        [Test]
+        public void AClearThatCannotDrain_DropsItsSurvivorsFromTheSubclassRecord()
+        {
+            LogAssert.Expect(LogType.Error, new Regex("could not drain"));
+
+            ComponentObjectPool<RecordingListener> componentPool =
+                new ComponentObjectPool<RecordingListener>(Listener(Template), 0);
+
+            List<GameObject> survivors = new();
+
+            componentPool.Get();
+            RecordingListener.WhenAnyDestroying = _ =>
+            {
+                RecordingListener rebuilt = componentPool.Get();
+                if (rebuilt != null)
+                {
+                    survivors.Add(rebuilt.gameObject);
+                }
+            };
+
+            componentPool.Clear();
+            RecordingListener.WhenAnyDestroying = null;
+
+            // Giving up ownership runs the subclass hook. Detaching the survivors without it left every
+            // one of them in the component map for the life of the process, which is the leak that hook
+            // exists to prevent - and these pools are static and outlive every scene.
+            Assert.That(componentPool.AllComponents, Is.Empty,
+                "the survivors stayed in the component map after the pool gave them up");
+
+            for (int i = 0; i < survivors.Count; i++)
+            {
+                if (survivors[i] != null)
+                {
+                    Object.DestroyImmediate(survivors[i]);
+                }
+            }
+        }
+
+        // The paths that begin with Unity destroying an object - OnDestroy telling the pool, the ordering
+        // that keeps a destroy subscriber from being handed the dying instance, and anything that turns on
+        // OnDisable - live in the PlayMode suite. Edit mode runs none of those messages for these
+        // components, so they cannot start here.
     }
 }

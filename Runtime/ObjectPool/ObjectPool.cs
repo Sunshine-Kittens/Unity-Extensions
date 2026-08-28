@@ -36,6 +36,12 @@ namespace UnityEngine.Extension
         // reporting is the one out of empty and back.
         private bool _notifiedEmpty = true;
 
+        // Instances that left the pool alive: disowned through RemoveFromPool, or abandoned by a Clear
+        // that could not drain. The pool has no claim on them any more, but they are still built from
+        // whatever asset a subclass loaded, so an empty map is not the same as an unused asset. Null
+        // until something is actually given up alive, which for every pool in the app is never.
+        private List<GameObject> _disownedInstances;
+
         public int ActiveCount => _activeObjects.Count;
         public int InactiveCount => _inactivePool.Count;
 
@@ -182,11 +188,20 @@ namespace UnityEngine.Extension
                 onInstantiate.Invoke(gameObject);
             }
 
+            // No handle at all is this pool's own bookkeeping failing rather than a callback's doing, and
+            // it is worth saying which: an untracked instance can never be returned or destroyed through
+            // the pool again.
+            if (pooledObject == null)
+            {
+                Debug.LogError($"{GetType().Name}: the instance it was about to hand out has no pool " +
+                               "handle, so the pool cannot track it.");
+                return null;
+            }
+
             // Checked on both branches, because Acquire ran listener code too and either callback can send
             // the object somewhere else. Detached is not a fault - that is a caller taking ownership,
             // which is what RemoveFromPool is for - but a return or a destroy leaves nothing to hand over.
-            if (pooledObject == null
-                || pooledObject.State == PooledObjectState.Pooled
+            if (pooledObject.State == PooledObjectState.Pooled
                 || pooledObject.State == PooledObjectState.Destroyed)
             {
                 Debug.LogError($"{GetType().Name}: a callback sent the object back to the pool or " +
@@ -262,9 +277,7 @@ namespace UnityEngine.Extension
             // OnDestroy lands and takes it back out of both collections. The window is real; it is the
             // reason to send objects home through the pool or the handle rather than destroying them
             // mid-return.
-            if (!_pooledObjects.TryGetValue(gameObject, out pooledObject)
-                || pooledObject == null
-                || pooledObject.State == PooledObjectState.Destroyed)
+            if (!StillOwned(gameObject, out pooledObject))
             {
                 return false;
             }
@@ -277,12 +290,23 @@ namespace UnityEngine.Extension
                 return true;
             }
 
+            // Deactivated before reparenting: moving an inactive object skips the hierarchy churn an
+            // active one would cause.
             gameObject.SetActive(false);
-            // Deactivate first: reparenting an inactive object skips the hierarchy churn an active one
-            // would cause.
+
+            // Deactivating runs OnDisable, which is callback code like any other and can disown or destroy
+            // the object just as the ones above can. Re-checked rather than assumed: by this point the
+            // object is in neither list, so a disown finds nothing to remove from them and the pool would
+            // go on to park an instance it no longer holds a tracking entry for. The next acquisition pops
+            // that instance, cannot account for it, and leaks it.
+            if (!StillOwned(gameObject, out pooledObject))
+            {
+                return false;
+            }
+
             gameObject.transform.SetParent(PoolRoot, false);
             _inactivePool.Add(gameObject);
-            pooledObject?.Returned();
+            pooledObject.Returned();
             return true;
         }
 
@@ -331,6 +355,13 @@ namespace UnityEngine.Extension
                 }
                 OnRemoved(gameObject);
                 tracked = true;
+
+                // Gone from the pool's books but not from the world. Until it dies, this pool cannot
+                // honestly tell a subclass that nothing of its asset is in use.
+                if (!leaving)
+                {
+                    RecordDisowned(gameObject);
+                }
             }
 
             if (tracked && notifyEmpty)
@@ -440,14 +471,24 @@ namespace UnityEngine.Extension
                                "from it while it is being cleared.");
 
                 // Whatever survived is alive in the world and about to be in none of these collections.
-                // Detaching it is the difference between an orphan that can still destroy itself through
-                // its own handle and one whose Destroy silently does nothing.
-                foreach (PooledObject survivor in _pooledObjects.Values)
+                // Disowning is three things, not one, and detaching alone did only the first: a subclass
+                // went on recording every survivor for the life of the process, a survivor a drain
+                // callback had parked was left under the root that is destroyed a few lines down, and the
+                // pool stayed free to call itself empty on some later pass.
+                GameObject[] survivors = new GameObject[_pooledObjects.Count];
+                _pooledObjects.Keys.CopyTo(survivors, 0);
+
+                for (int i = 0; i < survivors.Length; i++)
                 {
-                    if (survivor != null)
+                    if (RemoveFromPool(survivors[i], notifyEmpty: false))
                     {
-                        survivor.Detach();
+                        continue;
                     }
+
+                    // Already destroyed, so RemoveFromPool declined to touch it. Its entry still has to go
+                    // and the subclass still has to hear about it.
+                    _pooledObjects.Remove(survivors[i]);
+                    OnRemoved(survivors[i]);
                 }
             }
 
@@ -468,6 +509,8 @@ namespace UnityEngine.Extension
             {
                 // The map is empty because it was emptied, not because the instances are gone. Announcing
                 // that would hand a subclass its cue to release an asset the survivors are still built on.
+                // The survivors are on the disowned list too, so a later Clear taking the healthy path
+                // below is held back by the same fact rather than announcing what this one withheld.
                 return;
             }
 
@@ -597,6 +640,17 @@ namespace UnityEngine.Extension
             return removed;
         }
 
+        /// <summary>
+        /// Whether the pool still has a usable grip on the object. False once a callback has disowned or
+        /// destroyed it mid-operation, which is the point at which the pool has to stop filing it.
+        /// </summary>
+        private bool StillOwned(GameObject gameObject, out PooledObject pooledObject)
+        {
+            return _pooledObjects.TryGetValue(gameObject, out pooledObject)
+                && pooledObject != null
+                && pooledObject.State != PooledObjectState.Destroyed;
+        }
+
         private GameObject TakeFromInactive()
         {
             while (_inactivePool.Count > 0)
@@ -647,11 +701,54 @@ namespace UnityEngine.Extension
             }
         }
 
+        private void RecordDisowned(GameObject gameObject)
+        {
+            if (gameObject == null)
+            {
+                return;
+            }
+
+            _disownedInstances ??= new List<GameObject>();
+            _disownedInstances.Add(gameObject);
+        }
+
+        /// <summary>
+        /// Whether anything the pool gave up is still alive. Entries that have since been destroyed are
+        /// dropped as they are found, so the list empties itself and the pool can announce itself empty
+        /// again once the last object it disowned has gone.
+        /// </summary>
+        private bool HasLiveDisownedInstances()
+        {
+            if (_disownedInstances == null)
+            {
+                return false;
+            }
+
+            for (int i = _disownedInstances.Count - 1; i >= 0; i--)
+            {
+                if (_disownedInstances[i] == null)
+                {
+                    _disownedInstances.RemoveAt(i);
+                }
+            }
+
+            return _disownedInstances.Count > 0;
+        }
+
         private void NotifyIfEmpty()
         {
             // Edge, not level. This used to fire on every removal once the map was empty, and again from
             // Clear regardless - which for the addressable pools meant releasing the same handle twice.
             if (_notifiedEmpty || _pooledObjects.Count > 0)
+            {
+                return;
+            }
+
+            // An empty map is not an empty world. Anything given up alive - through RemoveFromPool, or by
+            // a Clear that could not drain - is still an instance of whatever asset a subclass loaded, and
+            // this notification is that subclass's cue to hand the asset back. Announcing it here pulls
+            // meshes and materials out from under objects still in the scene.
+            if (HasLiveDisownedInstances())
             {
                 return;
             }

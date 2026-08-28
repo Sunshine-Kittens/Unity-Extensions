@@ -66,7 +66,8 @@ namespace UnityEngine.Extension
         /// <summary>
         /// Hands out a component, building one if nothing is parked. Null if a callback sent the object
         /// back to the pool or destroyed it while Get was running - there is nothing to hand over in that
-        /// case, and the pool logs the fault.
+        /// case, and the pool logs the fault. A callback that took ownership through RemoveFromPool still
+        /// gets its component, matching what the base pool does with the object it belongs to.
         /// </summary>
         public T Get(Action<T> onInstantiate = null)
         {
@@ -80,11 +81,21 @@ namespace UnityEngine.Extension
                 }
             });
 
-            // Null when the instantiate callback sent the new object straight back; the base has already
-            // reported that. Indexing the map with it would only turn one logged fault into a throw.
-            return gameObject != null && _componentMap.TryGetValue(gameObject, out T component)
+            // Null when a callback sent the new object straight back or destroyed it; the base has
+            // already reported that. Indexing the map with it would only turn one logged fault into a
+            // throw.
+            if (gameObject == null)
+            {
+                return null;
+            }
+
+            // The map entry goes with the ownership, so a callback that disowned the object leaves nothing
+            // to look up. The base treats that as a legitimate hand-off and returns the object, so this
+            // has to hand over the component rather than silently drop it - resolved off the object
+            // itself, since the record is gone by design rather than by accident.
+            return _componentMap.TryGetValue(gameObject, out T component)
                 ? component
-                : null;
+                : gameObject.GetComponent<T>();
         }
 
         /// <summary>

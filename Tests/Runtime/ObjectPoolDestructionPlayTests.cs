@@ -18,17 +18,34 @@ namespace UnityEngine.Extension.PlayTests
     /// </summary>
     public sealed class ObjectPoolDestructionPlayTests
     {
+        // Serializable so a test can write the pool's serialized fields the way deserialization does,
+        // which is the only route to the inspector-write path that never runs a setter.
+        [Serializable]
         private sealed class TestPool : ObjectPool
         {
             private readonly GameObject _template;
 
             public int PoolEmptyCount { get; private set; }
 
+            /// <summary>The parking root, so a test can see which scene it ended up in.</summary>
+            public Transform Root => PoolRoot;
+
             public TestPool(GameObject template) => _template = template;
 
             public GameObject Acquire() => Get(_template);
 
             protected override void OnPoolEmpty() => PoolEmptyCount++;
+        }
+
+        /// <summary>
+        /// Disowns from OnDisable - the one callback the pool runs after its last ownership check, and the
+        /// reason there has to be another one after it.
+        /// </summary>
+        private sealed class DisownOnDisable : MonoBehaviour
+        {
+            public IObjectPool Pool;
+
+            private void OnDisable() => Pool?.RemoveFromPool(gameObject);
         }
 
         private GameObject _template;
@@ -138,6 +155,63 @@ namespace UnityEngine.Extension.PlayTests
             Assert.That(emptyCountWhenAnnounced, Is.EqualTo(0),
                 "the pool called itself empty before the destroy events ran");
             Assert.That(_pool.PoolEmptyCount, Is.EqualTo(1), "the pool never reported itself empty at all");
+        }
+
+        [UnityTest]
+        public IEnumerator DisowningWhileTheObjectIsDeactivating_NeverParksIt()
+        {
+            GameObject instance = _pool.Acquire();
+            instance.AddComponent<DisownOnDisable>().Pool = _pool;
+
+            bool parked = _pool.ReturnToPool(instance);
+
+            Assert.That(parked, Is.False, "the pool filed an object a callback had already taken off its books");
+            Assert.That(_pool.InactiveCount, Is.EqualTo(0),
+                "the parked set holds an instance with no tracking entry, and the next acquisition pops it");
+
+            Object.Destroy(instance);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator PersistPoolRoot_KeepsTheParkedSetOutOfTheScene()
+        {
+            _pool.PersistPoolRoot = true;
+            _pool.ReturnToPool(_pool.Acquire());
+
+            Assert.That(_pool.Root.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"),
+                "the parking root stayed in the scene, so a scene load takes the whole parked set with it");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ClearingPersistPoolRoot_BringsTheRootBackIntoTheScene()
+        {
+            _pool.PersistPoolRoot = true;
+            _pool.ReturnToPool(_pool.Acquire());
+
+            _pool.PersistPoolRoot = false;
+
+            Assert.That(_pool.Root.gameObject.scene.name, Is.Not.EqualTo("DontDestroyOnLoad"),
+                "the root stayed out of the scene, so nothing can repair a pool whose flag and root disagree");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator AnInspectorWrittenPersistFlag_TakesEffectOnTheNextReturn()
+        {
+            _pool.ReturnToPool(_pool.Acquire());
+            Assert.That(_pool.Root.gameObject.scene.name, Is.Not.EqualTo("DontDestroyOnLoad"));
+
+            // The flag is serialized, so ticking it in the inspector never runs the setter. Written here
+            // the same way deserialization writes it, which is the case the getter's bool compare - rather
+            // than an equality guard on the setter - exists for.
+            JsonUtility.FromJsonOverwrite("{\"_persistPoolRoot\":true}", _pool);
+            _pool.ReturnToPool(_pool.Acquire());
+
+            Assert.That(_pool.Root.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"),
+                "a flag written by deserialization never reached the root, so the parked set still dies with the scene");
+            yield return null;
         }
 
         [UnityTest]

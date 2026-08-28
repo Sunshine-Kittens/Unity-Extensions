@@ -28,6 +28,9 @@ namespace UnityEngine.Extension.Tests
 
             public void Fill(int count) => Prewarm(_template, count);
 
+            /// <summary>The parked set, so a test can look at an instance nobody has acquired yet.</summary>
+            public IReadOnlyList<GameObject> Parked => InactiveObjects;
+
             protected override void OnInstantiate(GameObject instantiatedObject) => InstantiateHookCount++;
 
             protected override void OnRemoved(GameObject removedObject) => RemovedCount++;
