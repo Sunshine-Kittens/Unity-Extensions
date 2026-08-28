@@ -244,12 +244,20 @@ namespace UnityEngine.Extension
                 // Attach leaves it reading Active and nobody is going to correct it.
                 instance.SetActive(false);
                 instance.transform.SetParent(PoolRoot, false);
-                _inactivePool.Add(instance);
 
-                if (_pooledObjects.TryGetValue(instance, out PooledObject pooledObject))
+                // Deactivating a freshly built instance runs OnDisable, which is free to disown or destroy
+                // it - the same window the return path guards, and this is the one place that had no check
+                // at all. Stopping rather than skipping: nothing else in this loop advances, so a callback
+                // that takes every instance as it is built would keep it building forever.
+                if (!StillOwned(instance, out PooledObject pooledObject))
                 {
-                    pooledObject.Park();
+                    Debug.LogError($"{GetType().Name}: a callback took the instance Prewarm had just " +
+                                   "built, so there is nothing to park.");
+                    break;
                 }
+
+                _inactivePool.Add(instance);
+                pooledObject.Park();
             }
         }
 
@@ -364,7 +372,7 @@ namespace UnityEngine.Extension
                 // subclass that nothing of its asset is in use.
                 if (!leaving)
                 {
-                    WatchDetachedInstance(gameObject);
+                    WatchDetachedInstance(gameObject, pooledObject);
                 }
             }
 
@@ -594,12 +602,18 @@ namespace UnityEngine.Extension
                 return;
             }
 
-            if (_pooledObjects.Remove(instance, out PooledObject pooledObject) && pooledObject != null)
+            bool mapped = _pooledObjects.Remove(instance, out PooledObject pooledObject);
+
+            // Before the announcement, not after - the same order HandleExternalDestroy states and
+            // follows. A subclass record left standing through OnDestroying hands a subscriber the dying
+            // instance back, and it is this path, not that one, that Clear, Trim, DestroyFromPool and a
+            // return past MaxParked all arrive on.
+            OnRemoved(instance);
+
+            if (mapped && pooledObject != null)
             {
                 pooledObject.Destroying();
             }
-
-            OnRemoved(instance);
 
             if (instance != null)
             {
@@ -710,15 +724,52 @@ namespace UnityEngine.Extension
         /// until the instance is destroyed and exists for one reason: to stop the pool announcing itself
         /// empty, and a subclass freeing the asset, while that instance is still in the world.
         /// </summary>
-        private void WatchDetachedInstance(GameObject gameObject)
+        private void WatchDetachedInstance(GameObject gameObject, PooledObject handle)
         {
-            if (gameObject == null)
+            if (gameObject == null || handle == null)
             {
                 return;
             }
 
             _detachedInstances ??= new List<GameObject>();
             _detachedInstances.Add(gameObject);
+
+            // Subscribed, because the pool has no other way to hear this one die. Detach drops the
+            // handle's pool reference, so its OnDestroy raises Destroyed and returns without telling
+            // anyone, and Prune cannot help either - a detached instance is in neither list. Without this
+            // the notification is not deferred, it is dropped: after a Clear that could not drain, which
+            // is a teardown by definition, nobody operates the pool again and the asset is never freed.
+            // Detach leaves the events intact and RaiseDestroyed still fires them on an unowned handle,
+            // so the subscription outlives the ownership it was made under.
+            handle.Destroyed += OnDetachedInstanceDestroyed;
+        }
+
+        private void OnDetachedInstanceDestroyed(IPooledObjectHandle handle)
+        {
+            // Dropped before asking, not after. The instance is still alive while its own Destroyed event
+            // is running, so leaving it on the list here would have it block the very notification its
+            // death just made due.
+            StopWatchingDetachedInstance(handle.Instance);
+            NotifyIfEmpty();
+        }
+
+        private void StopWatchingDetachedInstance(GameObject instance)
+        {
+            if (_detachedInstances == null || instance is null)
+            {
+                return;
+            }
+
+            // By reference: the instance is mid-destruction here, and this is about identity rather than
+            // about whether Unity still considers it alive.
+            for (int i = _detachedInstances.Count - 1; i >= 0; i--)
+            {
+                if (ReferenceEquals(_detachedInstances[i], instance))
+                {
+                    _detachedInstances.RemoveAt(i);
+                    break;
+                }
+            }
         }
 
         /// <summary>

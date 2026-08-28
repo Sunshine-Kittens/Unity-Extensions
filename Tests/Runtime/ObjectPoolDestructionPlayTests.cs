@@ -174,6 +174,28 @@ namespace UnityEngine.Extension.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator DestroyingTheLastDetachedInstance_FinallyReportsThePoolEmpty()
+        {
+            // The other half of the invariant. Withholding the notification while a detached instance is
+            // alive is only right if it is delivered once that instance dies - and the pool has no route
+            // to that death except the handle's own event, since detaching drops its pool reference and
+            // Prune walks two lists a detached instance is in neither of. Suppress-and-drop and
+            // suppress-and-deliver are indistinguishable without this assertion.
+            GameObject instance = _pool.Acquire();
+            _pool.RemoveFromPool(instance);
+
+            Assert.That(_pool.PoolEmptyCount, Is.EqualTo(0),
+                "the pool called itself empty while the instance it had just given up was still alive");
+
+            Object.Destroy(instance);
+            yield return null;
+
+            Assert.That(_pool.PoolEmptyCount, Is.EqualTo(1),
+                "the notification was withheld and then never delivered - an asset-backed pool would " +
+                "hold its asset for the life of the process");
+        }
+
+        [UnityTest]
         public IEnumerator PersistPoolRoot_KeepsTheParkedSetOutOfTheScene()
         {
             _pool.PersistPoolRoot = true;

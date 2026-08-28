@@ -279,6 +279,12 @@ namespace UnityEngine.Extension.PlayTests
                 }
             }
             yield return null;
+
+            // Withholding the release is only right if it arrives later. The survivors are gone, so
+            // nothing is built from the asset any more and it has to go back - and the pool's only route
+            // to that fact is the Destroyed event it subscribed to when it gave each of them up.
+            Assert.That(_pool.Releases, Is.EqualTo(1),
+                "the asset was withheld and then never handed back, so it would be held for the life of the process");
         }
 
         /// <summary>
