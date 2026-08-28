@@ -10,8 +10,11 @@ namespace UnityEngine.Extension
 
         /// <summary>
         /// Deactivates the object and files it back in the pool, driving the whole handle flow on the way.
-        /// Returns false when the object is not one this pool is currently lending out, which covers the
-        /// double return rather than throwing on it.
+        /// <para>
+        /// False means the object did not reach the parked set, which covers two cases: it was not one
+        /// this pool was lending out - a double return, rather than a throw - or a listener destroyed or
+        /// disowned it while it was on its way home.
+        /// </para>
         /// </summary>
         public bool ReturnToPool(GameObject gameObject);
 

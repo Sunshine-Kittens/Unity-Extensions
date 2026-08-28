@@ -122,6 +122,25 @@ namespace UnityEngine.Extension.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator TheEmptyNotificationLandsAfterTheDestroyEvents()
+        {
+            // OnDestroying is documented as the last chance to release what an object owns. An addressable
+            // pool frees its asset from OnPoolEmpty, so if the empty notification lands first, every
+            // listener runs against a bundle that has already been handed back.
+            GameObject instance = _pool.Acquire();
+
+            int emptyCountWhenAnnounced = -1;
+            Handle(instance).Destroyed += _ => emptyCountWhenAnnounced = _pool.PoolEmptyCount;
+
+            Object.Destroy(instance);
+            yield return null;
+
+            Assert.That(emptyCountWhenAnnounced, Is.EqualTo(0),
+                "the pool called itself empty before the destroy events ran");
+            Assert.That(_pool.PoolEmptyCount, Is.EqualTo(1), "the pool never reported itself empty at all");
+        }
+
+        [UnityTest]
         public IEnumerator DestroyingTheParentOfAParkedInstance_DoesNotTakeThatInstanceWithIt()
         {
             GameObject borrower = new GameObject("Borrower");

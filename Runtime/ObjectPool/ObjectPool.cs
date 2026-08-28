@@ -29,6 +29,7 @@ namespace UnityEngine.Extension
         [SerializeField] private bool _persistPoolRoot;
 
         private GameObject _poolRoot;
+        private bool _poolRootPersisted;
         private bool _capacityReserved;
 
         // A pool that has never held anything has nothing to announce, so the first transition worth
@@ -70,11 +71,16 @@ namespace UnityEngine.Extension
                 {
                     _poolRoot = new GameObject($"[Pool] {GetType().Name}");
                     _poolRoot.SetActive(false);
-                    if (PersistPoolRoot)
-                    {
-                        Object.DontDestroyOnLoad(_poolRoot);
-                    }
+                    _poolRootPersisted = false;
                 }
+
+                // A bool compare on every return, so that ticking the serialized flag in the inspector -
+                // which never touches the setter - still takes effect on the next one.
+                if (_poolRootPersisted != _persistPoolRoot)
+                {
+                    ApplyRootPersistence();
+                }
+
                 return _poolRoot.transform;
             }
         }
@@ -89,27 +95,31 @@ namespace UnityEngine.Extension
             get => _persistPoolRoot;
             set
             {
-                if (_persistPoolRoot == value)
-                {
-                    return;
-                }
-
+                // No equality guard. The field is serialized, so the inspector can write it without ever
+                // coming through here; re-applying unconditionally is what lets code repair a root that
+                // disagrees with the flag.
                 _persistPoolRoot = value;
-
-                if (_poolRoot == null)
-                {
-                    return;
-                }
-
-                if (value)
-                {
-                    Object.DontDestroyOnLoad(_poolRoot);
-                }
-                else
-                {
-                    SceneManager.MoveGameObjectToScene(_poolRoot, SceneManager.GetActiveScene());
-                }
+                ApplyRootPersistence();
             }
+        }
+
+        private void ApplyRootPersistence()
+        {
+            if (_poolRoot == null)
+            {
+                return;
+            }
+
+            if (_persistPoolRoot)
+            {
+                Object.DontDestroyOnLoad(_poolRoot);
+            }
+            else
+            {
+                SceneManager.MoveGameObjectToScene(_poolRoot, SceneManager.GetActiveScene());
+            }
+
+            _poolRootPersisted = _persistPoolRoot;
         }
 
         protected ObjectPool()
@@ -127,6 +137,12 @@ namespace UnityEngine.Extension
             _pooledObjects = new Dictionary<GameObject, PooledObject>(capacity);
         }
 
+        /// <summary>
+        /// Hands out an instance, building one if nothing is parked. Returns null if a callback sent the
+        /// object back to the pool or destroyed it while this was running - it cannot be handed over and
+        /// owned by the caller at the same time, so the fault is logged and nothing is returned. A caller
+        /// that takes ownership through <see cref="RemoveFromPool"/> still gets its object.
+        /// </summary>
         protected GameObject Get(GameObject template, Action<GameObject> onInstantiate = null)
         {
             ReserveCapacity();
@@ -164,16 +180,18 @@ namespace UnityEngine.Extension
             if (instantiated && onInstantiate != null)
             {
                 onInstantiate.Invoke(gameObject);
+            }
 
-                // The callback can do anything, returning or destroying included. Handing the object over
-                // as well would leave the caller and the pool both believing they own it, so the
-                // contradiction is reported rather than papered over.
-                if (pooledObject == null || pooledObject.State != PooledObjectState.Active)
-                {
-                    Debug.LogError($"{GetType().Name}: the onInstantiate callback sent the new object " +
-                                   "back or destroyed it, so Get has nothing to hand over.");
-                    return null;
-                }
+            // Checked on both branches, because Acquire ran listener code too and either callback can send
+            // the object somewhere else. Detached is not a fault - that is a caller taking ownership,
+            // which is what RemoveFromPool is for - but a return or a destroy leaves nothing to hand over.
+            if (pooledObject == null
+                || pooledObject.State == PooledObjectState.Pooled
+                || pooledObject.State == PooledObjectState.Destroyed)
+            {
+                Debug.LogError($"{GetType().Name}: a callback sent the object back to the pool or " +
+                               "destroyed it during Get, so there is nothing to hand over.");
+                return null;
             }
 
             return gameObject;
@@ -236,8 +254,14 @@ namespace UnityEngine.Extension
             // did has already done the bookkeeping, and parking it now would shelve an instance the pool
             // no longer owns and overwrite its terminal state. False, not true: it was taken out of the
             // active set but it never reached the parked one.
-            // A plain Object.Destroy cannot be seen from here - Unity defers it to the end of the frame -
-            // but that object's own OnDestroy takes it back out when it lands.
+            //
+            // One shape gets past this and cannot be caught here: a plain Object.Destroy on the object.
+            // Unity defers it to the end of the frame and exposes no way to ask whether a destroy is
+            // pending, so the entry is still mapped and still Active. That object is parked, reported as a
+            // successful return, and can be handed out again for the rest of the frame - then its
+            // OnDestroy lands and takes it back out of both collections. The window is real; it is the
+            // reason to send objects home through the pool or the handle rather than destroying them
+            // mid-return.
             if (!_pooledObjects.TryGetValue(gameObject, out pooledObject)
                 || pooledObject == null
                 || pooledObject.State == PooledObjectState.Destroyed)
@@ -409,10 +433,22 @@ namespace UnityEngine.Extension
                 DestroyInstance(stranded);
             }
 
-            if (_pooledObjects.Count > 0)
+            bool drainFailed = _pooledObjects.Count > 0;
+            if (drainFailed)
             {
                 Debug.LogError($"{GetType().Name}: Clear could not drain the pool - something is acquiring " +
                                "from it while it is being cleared.");
+
+                // Whatever survived is alive in the world and about to be in none of these collections.
+                // Detaching it is the difference between an orphan that can still destroy itself through
+                // its own handle and one whose Destroy silently does nothing.
+                foreach (PooledObject survivor in _pooledObjects.Values)
+                {
+                    if (survivor != null)
+                    {
+                        survivor.Detach();
+                    }
+                }
             }
 
             // The drain's callbacks may have put objects back in either list on their way through.
@@ -426,6 +462,13 @@ namespace UnityEngine.Extension
             {
                 DestroyPooledObject(_poolRoot);
                 _poolRoot = null;
+            }
+
+            if (drainFailed)
+            {
+                // The map is empty because it was emptied, not because the instances are gone. Announcing
+                // that would hand a subclass its cue to release an asset the survivors are still built on.
+                return;
             }
 
             // A teardown, not a transition: whatever the pool held is gone, and a subclass with an asset

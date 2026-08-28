@@ -63,11 +63,22 @@ namespace UnityEngine.Extension
             _componentMap = new (capacity);
         }
 
+        /// <summary>
+        /// Hands out a component, building one if nothing is parked. Null if a callback sent the object
+        /// back to the pool or destroyed it while Get was running - there is nothing to hand over in that
+        /// case, and the pool logs the fault.
+        /// </summary>
         public T Get(Action<T> onInstantiate = null)
         {
-            GameObject gameObject = Get(_template.gameObject, 
-                instance => onInstantiate?.Invoke(_componentMap[instance])
-            );
+            // TryGetValue on the way in as well as the way out. Acquire runs listener code before this
+            // callback, and a listener that disowns the object prunes the map from under it.
+            GameObject gameObject = Get(_template.gameObject, instance =>
+            {
+                if (onInstantiate != null && _componentMap.TryGetValue(instance, out T instantiated))
+                {
+                    onInstantiate.Invoke(instantiated);
+                }
+            });
 
             // Null when the instantiate callback sent the new object straight back; the base has already
             // reported that. Indexing the map with it would only turn one logged fault into a throw.

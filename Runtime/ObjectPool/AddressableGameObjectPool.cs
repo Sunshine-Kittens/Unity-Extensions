@@ -7,17 +7,11 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace UnityEngine.Extension
 {
-    public class AddressableGameObjectPool : ObjectPool
+    public class AddressableGameObjectPool : AssetBackedObjectPool
     {
         private readonly string _address;
 
         private AsyncOperationHandle<GameObject> _assetHandle;
-        private Task<GameObject> _loadTask;
-
-        // Bumped by every release. A load that was in flight when the pool was cleared resolves against a
-        // handle that has already been given back, so its result has to be discarded rather than handed
-        // out - and the comparison is the only way to tell, since the await itself completes normally.
-        private int _loadGeneration;
 
         public AddressableGameObjectPool(string address, int capacity) : base(capacity)
         {
@@ -36,7 +30,7 @@ namespace UnityEngine.Extension
             GameObject gameObject = Get(template, onInstantiate);
             if (gameObject == null)
             {
-                // The instantiate callback sent it back or destroyed it. Already reported by the base.
+                // A callback sent it back or destroyed it. Already reported by the base.
                 return null;
             }
 
@@ -47,8 +41,8 @@ namespace UnityEngine.Extension
         }
 
         /// <summary>
-        /// Loads the asset if it is not loaded, then builds instances until the pool holds at least
-        /// <paramref name="count"/>, parked and ready. False if the asset could not be loaded.
+        /// Loads the asset if it is not loaded, then builds instances until at least
+        /// <paramref name="count"/> are parked and ready. False if the asset could not be loaded.
         /// </summary>
         public async Awaitable<bool> Prewarm(int count)
         {
@@ -63,57 +57,20 @@ namespace UnityEngine.Extension
             return true;
         }
 
-        /// <summary>
-        /// One load, however many callers arrive while it is in flight. Each used to start its own the
-        /// moment it saw an invalid handle; every handle but the last was then overwritten and leaked.
-        /// </summary>
-        private async Awaitable<GameObject> GetTemplate()
+        protected override GameObject Template => _assetHandle.IsValid() ? _assetHandle.Result : null;
+
+        protected override Task<GameObject> BeginLoad()
         {
-            if (_assetHandle.IsValid() && _assetHandle.Result != null)
-                return _assetHandle.Result;
-
-            if (_loadTask == null)
-            {
-                // An attempt that resolved to nothing still leaves a valid handle behind. Release it
-                // before asking for another, or the failed one is overwritten and never given back -
-                // the very leak the shared gate below exists to prevent.
-                ReleaseAsset();
-
-                _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
-                _loadTask = _assetHandle.Task;
-            }
-
-            int generation = _loadGeneration;
-
-            try
-            {
-                GameObject loaded = await _loadTask;
-                return generation == _loadGeneration ? loaded : null;
-            }
-            finally
-            {
-                // Cleared by whichever caller finishes first; the rest are no-ops. A failed load then
-                // leaves the gate open so the next Get can try again. Left alone if a release happened
-                // meanwhile, since that already cleared the gate and opened a new generation.
-                if (generation == _loadGeneration)
-                {
-                    _loadTask = null;
-                }
-            }
+            _assetHandle = Addressables.LoadAssetAsync<GameObject>(_address);
+            return _assetHandle.Task;
         }
 
-        protected override void OnPoolEmpty()
+        protected override void ReleaseLoaded()
         {
-            ReleaseAsset();
-        }
-
-        private void ReleaseAsset()
-        {
-            _loadGeneration++;
-            _loadTask = null;
-
             if (_assetHandle.IsValid())
+            {
                 Addressables.Release(_assetHandle);
+            }
 
             // Reset rather than left dangling: IsValid alone does not stop a released handle being
             // released twice, and the next load has to see that there is nothing held.

@@ -48,11 +48,17 @@ namespace UnityEngine.Extension.Tests
             public Action<IPooledObjectHandle> WhenAcquired;
             public Action<IPooledObjectHandle> WhenReturning;
 
+            // Static, because a per-instance hook cannot reach objects the pool builds during the test
+            // itself - which is exactly the situation the re-entrant cases need. Cleared in teardown.
+            public static Action<RecordingListener> WhenAnyAcquired;
+            public static Action<RecordingListener> WhenAnyDestroying;
+
             public void OnAcquired(IPooledObjectHandle handle)
             {
                 Handle = handle;
                 Calls.Add(nameof(OnAcquired));
                 WhenAcquired?.Invoke(handle);
+                WhenAnyAcquired?.Invoke(this);
             }
 
             public void OnReturningToPool()
@@ -63,7 +69,11 @@ namespace UnityEngine.Extension.Tests
 
             public void OnReturnedToPool() => Calls.Add(nameof(OnReturnedToPool));
 
-            public void OnDestroying() => Calls.Add(nameof(OnDestroying));
+            public void OnDestroying()
+            {
+                Calls.Add(nameof(OnDestroying));
+                WhenAnyDestroying?.Invoke(this);
+            }
         }
 
         protected GameObject Template { get; private set; }
@@ -86,6 +96,10 @@ namespace UnityEngine.Extension.Tests
         [TearDown]
         public void DisposePool()
         {
+            // Before Clear: a stray hook would fire during teardown's own destruction.
+            RecordingListener.WhenAnyAcquired = null;
+            RecordingListener.WhenAnyDestroying = null;
+
             Pool?.Clear();
 
             if (Template != null)
