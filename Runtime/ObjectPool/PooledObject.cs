@@ -35,7 +35,7 @@ namespace UnityEngine.Extension
         /// </summary>
         public event Action<IPooledObjectHandle> Destroyed;
 
-        private IObjectPool _owningPool;
+        private ObjectPool _owningPool;
         private PooledObjectState _state = PooledObjectState.Detached;
         private IPooledObjectListener[] _listeners = Array.Empty<IPooledObjectListener>();
 
@@ -60,7 +60,7 @@ namespace UnityEngine.Extension
             }
 
             Destroying();
-            Object.Destroy(gameObject);
+            ObjectPool.DestroyPooledObject(gameObject);
         }
 
         // -----------------------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ namespace UnityEngine.Extension
         // into a state the pool does not know about.
         // -----------------------------------------------------------------------------------------------
 
-        internal void Attach(IObjectPool pool)
+        internal void Attach(ObjectPool pool)
         {
             _owningPool = pool ?? throw new ArgumentNullException(nameof(pool));
 
@@ -156,7 +156,7 @@ namespace UnityEngine.Extension
             return true;
         }
 
-        private void RaiseDestroyed()
+        internal void RaiseDestroyed()
         {
             for (int i = 0; i < _listeners.Length; i++)
             {
@@ -185,14 +185,21 @@ namespace UnityEngine.Extension
                 return;
 
             // Unity is taking the object down with no pool involvement: scene unload, a parent going away,
-            // or a plain Destroy call. Three steps, in this order and for three separate reasons: mark it
-            // so the pool can tell a disowned object from one already leaving and skips reparenting
-            // something Unity is mid-destroy; take it off the pool's books so nothing acquires it during
-            // the event; then announce it. Marking drops the pool reference, hence the capture.
-            IObjectPool owningPool = _owningPool;
+            // or a plain Destroy call. Marked first, so the pool can tell a disowned object from one that
+            // is already leaving and skips reparenting something Unity is mid-destroy. Marking drops the
+            // pool reference, hence the capture.
+            ObjectPool owningPool = _owningPool;
             MarkDestroyed();
-            owningPool?.RemoveFromPool(gameObject);
-            RaiseDestroyed();
+
+            if (owningPool == null)
+            {
+                RaiseDestroyed();
+                return;
+            }
+
+            // The pool owns the rest of the order, because two things have to happen either side of the
+            // announcement: the books cleared before it, and the empty notification after it.
+            owningPool.HandleExternalDestroy(gameObject, this);
         }
     }
 }

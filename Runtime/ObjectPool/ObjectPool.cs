@@ -262,7 +262,22 @@ namespace UnityEngine.Extension
             return true;
         }
 
-        public bool RemoveFromPool(GameObject gameObject)
+        /// <summary>
+        /// Unity destroyed one of ours without going through the pool. The order matters in both
+        /// directions: the books are cleared before the announcement so nothing can be handed the dying
+        /// instance, and the empty notification comes after it, so a subclass that frees an asset there
+        /// does not free it out from under the OnDestroying it is about to run.
+        /// </summary>
+        internal void HandleExternalDestroy(GameObject gameObject, PooledObject handle)
+        {
+            RemoveFromPool(gameObject, notifyEmpty: false);
+            handle.RaiseDestroyed();
+            NotifyIfEmpty();
+        }
+
+        public bool RemoveFromPool(GameObject gameObject) => RemoveFromPool(gameObject, notifyEmpty: true);
+
+        private bool RemoveFromPool(GameObject gameObject, bool notifyEmpty)
         {
             if (gameObject == null)
             {
@@ -294,7 +309,7 @@ namespace UnityEngine.Extension
                 tracked = true;
             }
 
-            if (tracked)
+            if (tracked && notifyEmpty)
             {
                 NotifyIfEmpty();
             }
@@ -409,7 +424,7 @@ namespace UnityEngine.Extension
             // destroy it, and Clear runs from OnDestroy where creating objects is not always allowed.
             if (_poolRoot != null)
             {
-                Object.Destroy(_poolRoot);
+                DestroyPooledObject(_poolRoot);
                 _poolRoot = null;
             }
 
@@ -433,6 +448,28 @@ namespace UnityEngine.Extension
                 NotifyIfEmpty();
             }
             return removed;
+        }
+
+        /// <summary>
+        /// Destroys through whichever call the current mode accepts. Edit mode refuses Object.Destroy
+        /// outright and does nothing, so a pool driven from editor tooling - or from a test - would leak
+        /// every instance it thought it had destroyed.
+        /// </summary>
+        internal static void DestroyPooledObject(Object target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Object.Destroy(target);
+            }
+            else
+            {
+                Object.DestroyImmediate(target);
+            }
         }
 
         // Headroom for a Clear whose destroy callbacks acquire as they go. Generous enough to drain any
@@ -476,7 +513,7 @@ namespace UnityEngine.Extension
 
             if (instance != null)
             {
-                Object.Destroy(instance);
+                DestroyPooledObject(instance);
             }
         }
 
