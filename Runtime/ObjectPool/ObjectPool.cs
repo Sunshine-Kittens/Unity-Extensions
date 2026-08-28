@@ -243,11 +243,15 @@ namespace UnityEngine.Extension
                 // no acquisition to announce the end of - but the handle still has to say Pooled, since
                 // Attach leaves it reading Active and nobody is going to correct it.
                 instance.SetActive(false);
-                instance.transform.SetParent(PoolRoot, false);
 
-                // Deactivating a freshly built instance runs OnDisable, which is free to disown or destroy
-                // it - the same window the return path guards, and this is the one place that had no check
-                // at all. Stopping rather than skipping: nothing else in this loop advances, so a callback
+                // Above the reparent, matching the return path. Deactivating a freshly built instance runs
+                // OnDisable, which is free to disown or destroy it, and parenting first would hand the
+                // caller its object under the root Clear destroys - the fresh instance arrives unparented,
+                // so RemoveFromPool's repair never triggers. In edit mode a destroy there is immediate,
+                // and reading the transform of a destroyed instance throws before the guard could report
+                // anything. Nothing is lost by checking first: reparenting an already-inactive object
+                // dispatches no message, so no callback runs between here and the SetParent below.
+                // Stopping rather than skipping, because nothing else in this loop advances - a callback
                 // that takes every instance as it is built would keep it building forever.
                 if (!StillOwned(instance, out PooledObject pooledObject))
                 {
@@ -256,6 +260,7 @@ namespace UnityEngine.Extension
                     break;
                 }
 
+                instance.transform.SetParent(PoolRoot, false);
                 _inactivePool.Add(instance);
                 pooledObject.Park();
             }
