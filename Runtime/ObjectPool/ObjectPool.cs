@@ -36,11 +36,14 @@ namespace UnityEngine.Extension
         // reporting is the one out of empty and back.
         private bool _notifiedEmpty = true;
 
-        // Instances that left the pool alive: disowned through RemoveFromPool, or abandoned by a Clear
-        // that could not drain. The pool has no claim on them any more, but they are still built from
-        // whatever asset a subclass loaded, so an empty map is not the same as an unused asset. Null
-        // until something is actually given up alive, which for every pool in the app is never.
-        private List<GameObject> _disownedInstances;
+        // Watched rather than merely listed: instances this pool built and then let go of while they
+        // were still alive - handed to a caller by RemoveFromPool, or abandoned by a Clear that could not
+        // drain. Exactly the instances whose handle reads PooledObjectState.Detached, since that is what
+        // the pool leaves behind when it gives one up without destroying it. They are the difference
+        // between an empty map and an empty world, and the whole reason the pool cannot treat the first
+        // as the second. Each is watched until it dies and then dropped. Null until one is actually given
+        // up alive, which for every pool in the app is never.
+        private List<GameObject> _detachedInstances;
 
         public int ActiveCount => _activeObjects.Count;
         public int InactiveCount => _inactivePool.Count;
@@ -356,11 +359,12 @@ namespace UnityEngine.Extension
                 OnRemoved(gameObject);
                 tracked = true;
 
-                // Gone from the pool's books but not from the world. Until it dies, this pool cannot
-                // honestly tell a subclass that nothing of its asset is in use.
+                // Detached rather than dying, so it is gone from the pool's books but not from the
+                // world. Watched from here, because until it dies this pool cannot honestly tell a
+                // subclass that nothing of its asset is in use.
                 if (!leaving)
                 {
-                    RecordDisowned(gameObject);
+                    WatchDetachedInstance(gameObject);
                 }
             }
 
@@ -471,10 +475,10 @@ namespace UnityEngine.Extension
                                "from it while it is being cleared.");
 
                 // Whatever survived is alive in the world and about to be in none of these collections.
-                // Disowning is three things, not one, and detaching alone did only the first: a subclass
-                // went on recording every survivor for the life of the process, a survivor a drain
-                // callback had parked was left under the root that is destroyed a few lines down, and the
-                // pool stayed free to call itself empty on some later pass.
+                // Letting one go is three things, not one, and calling Detach alone did only the first: a
+                // subclass went on recording every survivor for the life of the process, a survivor a
+                // drain callback had parked was left under the root that is destroyed a few lines down,
+                // and the pool stayed free to call itself empty on some later pass.
                 GameObject[] survivors = new GameObject[_pooledObjects.Count];
                 _pooledObjects.Keys.CopyTo(survivors, 0);
 
@@ -509,8 +513,8 @@ namespace UnityEngine.Extension
             {
                 // The map is empty because it was emptied, not because the instances are gone. Announcing
                 // that would hand a subclass its cue to release an asset the survivors are still built on.
-                // The survivors are on the disowned list too, so a later Clear taking the healthy path
-                // below is held back by the same fact rather than announcing what this one withheld.
+                // The survivors are on the detached watch list too, so a later Clear taking the healthy
+                // path below is held back by the same fact rather than announcing what this one withheld.
                 return;
             }
 
@@ -701,38 +705,43 @@ namespace UnityEngine.Extension
             }
         }
 
-        private void RecordDisowned(GameObject gameObject)
+        /// <summary>
+        /// Starts watching an instance the pool has detached while it was still alive. The watch lasts
+        /// until the instance is destroyed and exists for one reason: to stop the pool announcing itself
+        /// empty, and a subclass freeing the asset, while that instance is still in the world.
+        /// </summary>
+        private void WatchDetachedInstance(GameObject gameObject)
         {
             if (gameObject == null)
             {
                 return;
             }
 
-            _disownedInstances ??= new List<GameObject>();
-            _disownedInstances.Add(gameObject);
+            _detachedInstances ??= new List<GameObject>();
+            _detachedInstances.Add(gameObject);
         }
 
         /// <summary>
-        /// Whether anything the pool gave up is still alive. Entries that have since been destroyed are
-        /// dropped as they are found, so the list empties itself and the pool can announce itself empty
-        /// again once the last object it disowned has gone.
+        /// Whether anything the pool detached is still alive. Entries that have since been destroyed are
+        /// dropped as they are found, so the watch list empties itself and the pool can announce itself
+        /// empty again once the last instance it let go of has gone.
         /// </summary>
-        private bool HasLiveDisownedInstances()
+        private bool AnyDetachedInstanceStillAlive()
         {
-            if (_disownedInstances == null)
+            if (_detachedInstances == null)
             {
                 return false;
             }
 
-            for (int i = _disownedInstances.Count - 1; i >= 0; i--)
+            for (int i = _detachedInstances.Count - 1; i >= 0; i--)
             {
-                if (_disownedInstances[i] == null)
+                if (_detachedInstances[i] == null)
                 {
-                    _disownedInstances.RemoveAt(i);
+                    _detachedInstances.RemoveAt(i);
                 }
             }
 
-            return _disownedInstances.Count > 0;
+            return _detachedInstances.Count > 0;
         }
 
         private void NotifyIfEmpty()
@@ -744,11 +753,11 @@ namespace UnityEngine.Extension
                 return;
             }
 
-            // An empty map is not an empty world. Anything given up alive - through RemoveFromPool, or by
-            // a Clear that could not drain - is still an instance of whatever asset a subclass loaded, and
-            // this notification is that subclass's cue to hand the asset back. Announcing it here pulls
-            // meshes and materials out from under objects still in the scene.
-            if (HasLiveDisownedInstances())
+            // An empty map is not an empty world. Anything detached while alive - through RemoveFromPool,
+            // or by a Clear that could not drain - is still an instance of whatever asset a subclass
+            // loaded, and this notification is that subclass's cue to hand the asset back. Announcing it
+            // here pulls meshes and materials out from under objects still in the scene.
+            if (AnyDetachedInstanceStillAlive())
             {
                 return;
             }
