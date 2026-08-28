@@ -133,12 +133,31 @@ namespace UnityEngine.Extension
 
         internal void Destroying()
         {
+            if (MarkDestroyed())
+            {
+                RaiseDestroyed();
+            }
+        }
+
+        /// <summary>
+        /// Records the death without announcing it. Split from the announcement so the pool can take the
+        /// object off its books in between: a subscriber that acquires while the event is running must not
+        /// be handed the instance that is dying.
+        /// </summary>
+        private bool MarkDestroyed()
+        {
             if (_state == PooledObjectState.Destroyed)
-                return;
+            {
+                return false;
+            }
 
             _state = PooledObjectState.Destroyed;
             _owningPool = null;
+            return true;
+        }
 
+        private void RaiseDestroyed()
+        {
             for (int i = 0; i < _listeners.Length; i++)
             {
                 try { _listeners[i].OnDestroying(); }
@@ -166,13 +185,14 @@ namespace UnityEngine.Extension
                 return;
 
             // Unity is taking the object down with no pool involvement: scene unload, a parent going away,
-            // or a plain Destroy call. Tell the pool so it is not left holding a dead entry - but mark the
-            // state first, so the pool can tell a disowned object from one that is already leaving and
-            // does not try to reparent something Unity is in the middle of destroying. Destroying() drops
-            // the pool reference, hence the capture.
+            // or a plain Destroy call. Three steps, in this order and for three separate reasons: mark it
+            // so the pool can tell a disowned object from one already leaving and skips reparenting
+            // something Unity is mid-destroy; take it off the pool's books so nothing acquires it during
+            // the event; then announce it. Marking drops the pool reference, hence the capture.
             IObjectPool owningPool = _owningPool;
-            Destroying();
+            MarkDestroyed();
             owningPool?.RemoveFromPool(gameObject);
+            RaiseDestroyed();
         }
     }
 }

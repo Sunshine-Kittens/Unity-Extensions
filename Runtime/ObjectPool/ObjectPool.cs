@@ -24,8 +24,11 @@ namespace UnityEngine.Extension
                  "kept. Zero is unbounded.")]
         [SerializeField] private int _maxParked;
 
+        [Tooltip("Keep the parking root across scene loads. Set this for a pool owned by anything " +
+                 "app-scoped, or its parked objects go down with the scene and are all built again.")]
+        [SerializeField] private bool _persistPoolRoot;
+
         private GameObject _poolRoot;
-        private bool _persistPoolRoot;
         private bool _capacityReserved;
 
         // A pool that has never held anything has nothing to announce, so the first transition worth
@@ -155,12 +158,22 @@ namespace UnityEngine.Extension
                 pooledObject.Acquire();
             }
 
-            // Last, and only now that the object is tracked as lent out. Attaching before the callback was
-            // not enough on its own: ReturnToPool from in here found nothing in the active list to remove
-            // and quietly did nothing at all.
-            if (instantiated)
+            // Last, and only now that the object is tracked as lent out: attaching the handle before the
+            // callback was not enough on its own, since ReturnToPool found nothing in the active list to
+            // remove and quietly did nothing.
+            if (instantiated && onInstantiate != null)
             {
-                onInstantiate?.Invoke(gameObject);
+                onInstantiate.Invoke(gameObject);
+
+                // The callback can do anything, returning or destroying included. Handing the object over
+                // as well would leave the caller and the pool both believing they own it, so the
+                // contradiction is reported rather than papered over.
+                if (pooledObject == null || pooledObject.State != PooledObjectState.Active)
+                {
+                    Debug.LogError($"{GetType().Name}: the onInstantiate callback sent the new object " +
+                                   "back or destroyed it, so Get has nothing to hand over.");
+                    return null;
+                }
             }
 
             return gameObject;
@@ -219,12 +232,17 @@ namespace UnityEngine.Extension
             _pooledObjects.TryGetValue(gameObject, out PooledObject pooledObject);
             pooledObject?.Returning();
 
-            // Returning() runs listener code, and a listener is free to destroy the object outright.
-            // Whatever took it out of the pool has already done the bookkeeping; carrying on would shelve
-            // a doomed instance and overwrite its terminal state back to Pooled.
-            if (!_pooledObjects.ContainsKey(gameObject))
+            // Returning() runs listener code, which is free to destroy or disown the object. Anything that
+            // did has already done the bookkeeping, and parking it now would shelve an instance the pool
+            // no longer owns and overwrite its terminal state. False, not true: it was taken out of the
+            // active set but it never reached the parked one.
+            // A plain Object.Destroy cannot be seen from here - Unity defers it to the end of the frame -
+            // but that object's own OnDestroy takes it back out when it lands.
+            if (!_pooledObjects.TryGetValue(gameObject, out pooledObject)
+                || pooledObject == null
+                || pooledObject.State == PooledObjectState.Destroyed)
             {
-                return true;
+                return false;
             }
 
             if (_maxParked > 0 && _inactivePool.Count >= _maxParked)
@@ -360,19 +378,31 @@ namespace UnityEngine.Extension
             DestroyAll(_activeObjects);
             DestroyAll(_inactivePool);
 
-            // Anything still mapped was in neither list. Draining it through the same per-object path
-            // keeps a subclass's own map in step; clearing in bulk left it holding what this one forgot.
-            if (_pooledObjects.Count > 0)
+            // Anything still mapped was in neither list. Drained one at a time rather than snapshotted,
+            // because a destroy callback can acquire from this pool and a bulk clear afterwards would drop
+            // whatever it just built - the very orphan this drain exists to prevent. Bounded, since a
+            // callback that acquires every time would otherwise spin here for good.
+            int drainAttempts = _pooledObjects.Count + DrainAttemptAllowance;
+            while (_pooledObjects.Count > 0 && drainAttempts-- > 0)
             {
-                GameObject[] stranded = new GameObject[_pooledObjects.Count];
-                _pooledObjects.Keys.CopyTo(stranded, 0);
-
-                for (int i = 0; i < stranded.Length; i++)
+                GameObject stranded = null;
+                foreach (GameObject pooled in _pooledObjects.Keys)
                 {
-                    DestroyInstance(stranded[i]);
+                    stranded = pooled;
+                    break;
                 }
+                DestroyInstance(stranded);
             }
 
+            if (_pooledObjects.Count > 0)
+            {
+                Debug.LogError($"{GetType().Name}: Clear could not drain the pool - something is acquiring " +
+                               "from it while it is being cleared.");
+            }
+
+            // The drain's callbacks may have put objects back in either list on their way through.
+            _activeObjects.Clear();
+            _inactivePool.Clear();
             _pooledObjects.Clear();
 
             // The backing field, not the property: asking for the root here would build one only to
@@ -404,6 +434,10 @@ namespace UnityEngine.Extension
             }
             return removed;
         }
+
+        // Headroom for a Clear whose destroy callbacks acquire as they go. Generous enough to drain any
+        // reasonable cascade, small enough to stop a runaway one.
+        private const int DrainAttemptAllowance = 64;
 
         private GameObject CreateInstance(GameObject template)
         {

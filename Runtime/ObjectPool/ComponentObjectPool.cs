@@ -66,9 +66,14 @@ namespace UnityEngine.Extension
         public T Get(Action<T> onInstantiate = null)
         {
             GameObject gameObject = Get(_template.gameObject, 
-                gameObject => onInstantiate?.Invoke(_componentMap[gameObject])
+                instance => onInstantiate?.Invoke(_componentMap[instance])
             );
-            return _componentMap[gameObject];
+
+            // Null when the instantiate callback sent the new object straight back; the base has already
+            // reported that. Indexing the map with it would only turn one logged fault into a throw.
+            return gameObject != null && _componentMap.TryGetValue(gameObject, out T component)
+                ? component
+                : null;
         }
 
         /// <summary>

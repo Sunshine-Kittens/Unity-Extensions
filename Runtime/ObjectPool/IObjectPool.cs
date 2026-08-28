@@ -17,8 +17,9 @@ namespace UnityEngine.Extension
 
         /// <summary>
         /// Gives up ownership without destroying. The handle is detached and stops pointing here, and a
-        /// parked object is lifted off the pool's parking root so a later Clear cannot take it down. It
-        /// comes back deactivated - activating it is the new owner's call.
+        /// parked object is lifted off the pool's parking root so a later Clear cannot take it down. The
+        /// object is handed back exactly as it was - one that was parked is still deactivated, one that
+        /// was lent out is still live. The pool changes no active state on the way out.
         /// </summary>
         public bool RemoveFromPool(GameObject gameObject);
 

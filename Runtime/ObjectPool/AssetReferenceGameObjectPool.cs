@@ -15,6 +15,11 @@ namespace UnityEngine.Extension
         private AsyncOperationHandle<GameObject> _assetHandle;
         private Task<GameObject> _loadTask;
 
+        // Bumped by every release. A load that was in flight when the pool was cleared resolves against a
+        // handle that has already been given back, so its result has to be discarded rather than handed
+        // out - and the comparison is the only way to tell, since the await itself completes normally.
+        private int _loadGeneration;
+
         // Unity builds a serialized field through the parameterless constructor. Without one this type
         // could not round-trip at all, which is the only reason it has never been used from the inspector.
         public AssetReferenceGameObjectPool() { }
@@ -53,13 +58,21 @@ namespace UnityEngine.Extension
                 _loadTask = _assetHandle.Task;
             }
 
+            int generation = _loadGeneration;
+
             try
             {
-                return await _loadTask;
+                GameObject loaded = await _loadTask;
+                return generation == _loadGeneration ? loaded : null;
             }
             finally
             {
-                _loadTask = null;
+                // Left alone if a release happened meanwhile: that already cleared the gate and opened a
+                // new generation, and clearing it again would discard a newer load's task.
+                if (generation == _loadGeneration)
+                {
+                    _loadTask = null;
+                }
             }
         }
 
@@ -70,6 +83,7 @@ namespace UnityEngine.Extension
 
         private void ReleaseAsset()
         {
+            _loadGeneration++;
             _loadTask = null;
 
             if (_assetHandle.IsValid())

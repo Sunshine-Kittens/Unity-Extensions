@@ -14,6 +14,11 @@ namespace UnityEngine.Extension
         private AsyncOperationHandle<GameObject> _assetHandle;
         private Task<GameObject> _loadTask;
 
+        // Bumped by every release. A load that was in flight when the pool was cleared resolves against a
+        // handle that has already been given back, so its result has to be discarded rather than handed
+        // out - and the comparison is the only way to tell, since the await itself completes normally.
+        private int _loadGeneration;
+
         public AddressableGameObjectPool(string address, int capacity) : base(capacity)
         {
             _address = address;
@@ -29,6 +34,12 @@ namespace UnityEngine.Extension
             }
 
             GameObject gameObject = Get(template, onInstantiate);
+            if (gameObject == null)
+            {
+                // The instantiate callback sent it back or destroyed it. Already reported by the base.
+                return null;
+            }
+
             gameObject.transform.position = position;
             gameObject.transform.rotation = rotation;
             gameObject.transform.SetParent(parent);
@@ -72,15 +83,22 @@ namespace UnityEngine.Extension
                 _loadTask = _assetHandle.Task;
             }
 
+            int generation = _loadGeneration;
+
             try
             {
-                return await _loadTask;
+                GameObject loaded = await _loadTask;
+                return generation == _loadGeneration ? loaded : null;
             }
             finally
             {
                 // Cleared by whichever caller finishes first; the rest are no-ops. A failed load then
-                // leaves the gate open so the next Get can try again.
-                _loadTask = null;
+                // leaves the gate open so the next Get can try again. Left alone if a release happened
+                // meanwhile, since that already cleared the gate and opened a new generation.
+                if (generation == _loadGeneration)
+                {
+                    _loadTask = null;
+                }
             }
         }
 
@@ -91,6 +109,7 @@ namespace UnityEngine.Extension
 
         private void ReleaseAsset()
         {
+            _loadGeneration++;
             _loadTask = null;
 
             if (_assetHandle.IsValid())
