@@ -109,7 +109,13 @@ namespace UnityEngine.Extension
             return _elements.Contains(element);
         }
 
-        public IEnumerator<T> GetEnumerator()
+        // Returns the struct so a foreach over the collection doesn't box the enumerator.
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(this);
+        }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
         {
             return new Enumerator(this);
         }
