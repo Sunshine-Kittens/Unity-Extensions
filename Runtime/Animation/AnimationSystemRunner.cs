@@ -54,6 +54,11 @@ namespace UnityEngine.Extension
         {
             for (int i = _playerList.Count - 1; i >= 0; i--)
             {
+                // Update can complete the player, and a completion continuation may release it — which
+                // deregisters it here — so the list can shrink underneath this loop.
+                if (i >= _playerList.Count)
+                    continue;
+
                 AnimationPlayer player = _playerList[i];
                 bool exceptionCaught = false;
                 try
@@ -62,16 +67,18 @@ namespace UnityEngine.Extension
                 }
                 catch (System.Exception e)
                 {
-                    Debug.Log($"Player for {player.Animation.GetType().Name} removed as an exception has been caught during update: {e.Message}");
+                    // Null-safe: Update's own guard throws precisely when Animation is null, so reading it
+                    // unconditionally here would fault inside the handler and escape the loop.
+                    Debug.Log($"Player for {player.Animation?.GetType().Name ?? "<no animation>"} removed as an exception has been caught during update: {e.Message}"); 
+                    Debug.LogException(e);
                     exceptionCaught = true;
                 }
                 finally
                 {
-                    if (!player.IsPlaying || exceptionCaught)
+                    if ((!player.IsPlaying || exceptionCaught) && _playerHashSet.Remove(player))
                     {
-                        _playerList.RemoveAt(i);
-                        _playerHashSet.Remove(player);
-                    }
+                        _playerList.Remove(player);                    
+					}
                 }
             }
         }

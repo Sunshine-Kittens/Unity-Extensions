@@ -6,7 +6,19 @@ namespace UnityEngine.Extension
 {
     public static class CollectionExtensionMethods
     {
-        public static bool IsValidIndex<T>(this T collection, int index) where T : class, IList, ICollection
+        public static bool IsValidIndex<T>(this IReadOnlyList<T> collection, int index)
+        {
+            if (collection.Count > 0)
+            {
+                if (index >= 0 && index < collection.Count)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        public static bool IsValidIndex<T>(this T collection, int index) where T : class, ICollection
         {
             if (collection.Count > 0)
             {
@@ -18,7 +30,7 @@ namespace UnityEngine.Extension
             return false;
         }
 
-        public static int DecrementIndex<T>(this T collection, int index, int amount) where T : class, IList, ICollection
+        public static int DecrementIndex<T>(this T collection, int index, int amount) where T : class, ICollection
         {
             int newId = index - amount;
             if (newId < 0)
@@ -33,7 +45,7 @@ namespace UnityEngine.Extension
             return newId;
         }
 
-        public static int IncrementIndex<T>(this T collection, int index, int amount) where T : class, IList, ICollection
+        public static int IncrementIndex<T>(this T collection, int index, int amount) where T : class, ICollection
         {
             return (index + amount) % collection.Count;
         }
@@ -71,7 +83,7 @@ namespace UnityEngine.Extension
             }
         }
 
-        public static T RandomElement<T>(this List<T> list)
+        public static T RandomElement<T>(this IReadOnlyList<T> list)
         {
             return list[UnityEngine.Random.Range(0, list.Count)];
         }

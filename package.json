@@ -1,5 +1,5 @@
 {
-  "name": "com.lukeandrews.unity-extension",
+  "name": "com.luke-andrews.unity-extension",
   "version": "1.0.20",
   "displayName": "Unity Engine Extension",
   "description": "A code library that extends the default Unity3D engine functionality.",
@@ -9,7 +9,8 @@
   "licensesUrl": "https://example.com/licensing.html",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "com.unity.addressables": "2.7.4"
+    "com.unity.addressables": "2.7.4",
+    "com.unity.burst": "1.6.0"
   },
  "keywords": [
     "engine",
