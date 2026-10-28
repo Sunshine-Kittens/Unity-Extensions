@@ -130,8 +130,8 @@ namespace UnityEngine.Extension
         }
         
         // Returns the flag to its freshly-constructed state: the requested channel to the given default,
-        // the override channel back open. A reset that left the override count behind would preserve drift
-        // forever — no sequence of public calls can repair an unbalanced override.
+        // the override channel back open. A reset that left the override count behind would preserve drift:
+        // Value hides the count, so nothing outside the flag can see what to rebalance.
         public void Reset(bool defaultValue = false)
         {
             bool previousValue = Value;
